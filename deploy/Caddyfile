@@ -1,0 +1,13 @@
+# Caddy obtains and renews the HTTPS certificate automatically (Let's Encrypt).
+# Requirements: the DOMAIN's DNS A record points to this server, and ports 80 and 443 are open.
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000 {
+		# Stream Server-Sent Events (/api/v1/events) immediately.
+		flush_interval -1
+	}
+}

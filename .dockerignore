@@ -1,0 +1,15 @@
+**/node_modules
+**/.next
+**/.expo
+**/dist
+**/dist-*
+**/.turbo
+**/*.log
+.git
+.env
+**/.env
+deploy/.env
+deploy/backups
+e2e/output
+apps/mobile/ios
+apps/mobile/android
