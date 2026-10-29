@@ -7,6 +7,7 @@ import { describeError, logger } from './logger';
 import { createPushProvider, type PushProvider } from './providers/push';
 import { createSmsProvider, type SmsProvider } from './providers/sms';
 import { RealtimeBus } from './realtime';
+import type { StoredWhatsApp } from './services/whatsapp';
 
 export interface ServerContext {
   config: ServerConfig;
@@ -16,7 +17,11 @@ export interface ServerContext {
   sms: SmsProvider;
   push: PushProvider;
   realtime: RealtimeBus;
-  cache: { settings: { value: SystemSettings; loadedAt: number } | null; lastFreshnessSweep: number };
+  cache: {
+    settings: { value: SystemSettings; loadedAt: number } | null;
+    whatsapp: { value: StoredWhatsApp | null; loadedAt: number } | null;
+    lastFreshnessSweep: number;
+  };
   close(): Promise<void>;
 }
 
@@ -39,7 +44,7 @@ export function createServerContext(options: CreateContextOptions = {}): ServerC
     sms: options.sms ?? createSmsProvider(config),
     push: options.push ?? createPushProvider(config),
     realtime,
-    cache: { settings: null, lastFreshnessSweep: 0 },
+    cache: { settings: null, whatsapp: null, lastFreshnessSweep: 0 },
     async close() {
       await realtime.close();
       await pool.end();

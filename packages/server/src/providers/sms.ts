@@ -1,6 +1,7 @@
 import { maskPhone, type DevOtpMessageDTO } from '@vms/shared';
 import type { ServerConfig, SmsProviderName } from '../config';
 import { describeError, logger } from '../logger';
+import { sendAuthCode, type WhatsAppConnection } from './whatsapp';
 
 export interface SmsMessage {
   to: string;
@@ -72,39 +73,24 @@ export class TwilioSmsProvider implements SmsProvider {
   }
 }
 
-/**
- * WhatsApp Cloud API (Meta). Sends an approved "authentication" template whose body and
- * copy-code button carry the code. Requires real credentials; delivery is not verified by this code.
- */
+/** WhatsApp Cloud API (Meta) with an approved authentication template. Delivery is not verified by this code. */
 export class WhatsAppCloudProvider implements SmsProvider {
   readonly name = 'whatsapp' as const;
   readonly available = true;
   readonly isDevelopment = false;
-  constructor(private readonly cfg: ServerConfig['sms']['whatsapp']) {}
+  constructor(
+    private readonly conn: WhatsAppConnection,
+    private readonly hooks: { onSent?(): void; onFailed?(err: unknown): void } = {},
+  ) {}
 
   async send(message: SmsMessage): Promise<void> {
-    const res = await fetch(`https://graph.facebook.com/${this.cfg.apiVersion}/${encodeURIComponent(this.cfg.phoneNumberId)}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${this.cfg.accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: message.to.replace(/^\+/, ''),
-        type: 'template',
-        template: {
-          name: this.cfg.templateName,
-          language: { code: this.cfg.templateLanguage },
-          components: [
-            { type: 'body', parameters: [{ type: 'text', text: message.code }] },
-            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: message.code }] },
-          ],
-        },
-      }),
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      // Do not log the response body: it echoes the destination number.
-      throw new Error(`WhatsApp Cloud API responded with HTTP ${res.status}`);
+    try {
+      await sendAuthCode(this.conn, message.to, message.code);
+    } catch (err) {
+      this.hooks.onFailed?.(err);
+      throw err;
     }
+    this.hooks.onSent?.();
   }
 }
 

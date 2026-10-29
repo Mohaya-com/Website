@@ -324,6 +324,40 @@ export interface DashboardSummaryDTO {
   generatedAt: string;
 }
 
+export type SmsProviderKind = 'dev' | 'twilio' | 'whatsapp' | 'disabled';
+
+/** WhatsApp connection managed from the admin settings. The access token itself is never returned. */
+export interface WhatsAppStatusDTO {
+  /** SMS_PROVIDER from the server environment. Anything other than "disabled" takes precedence over these settings. */
+  environmentProvider: SmsProviderKind;
+  /** Visitor verification codes are currently sent through this connection. */
+  active: boolean;
+  configured: boolean;
+  enabled: boolean;
+  phoneNumberId: string | null;
+  businessAccountId: string | null;
+  templateName: string;
+  templateLanguage: string;
+  /** Last four characters of the stored token, e.g. "…a1B2". */
+  tokenHint: string | null;
+  /** False when the stored token can no longer be decrypted (OTP_SECRET changed): enter it again. */
+  tokenReadable: boolean;
+  displayPhoneNumber: string | null;
+  verifiedName: string | null;
+  /** Meta template status: APPROVED, PENDING, REJECTED, PAUSED, DISABLED… */
+  templateStatus: string | null;
+  checkedAt: string | null;
+  lastTest: { at: string; ok: boolean; error: string | null } | null;
+  lastDeliveryError: { at: string; error: string } | null;
+  updatedAt: string | null;
+}
+
+export interface WhatsAppTestResultDTO {
+  ok: true;
+  /** WhatsApp accepted the message. Acceptance is not proof of delivery to the phone. */
+  messageId: string | null;
+}
+
 export interface PublicConfigDTO {
   compoundNameAr: string;
   compoundNameEn: string;
@@ -335,7 +369,7 @@ export interface PublicConfigDTO {
   maxAdvanceBookingDays: number;
   identityChecksumValidation: boolean;
   allowVisitorSelfRegistration: boolean;
-  sms: { provider: 'dev' | 'twilio' | 'whatsapp' | 'disabled'; available: boolean; developmentMode: boolean };
+  sms: { provider: SmsProviderKind; available: boolean; developmentMode: boolean };
   push: { enabled: boolean };
   demoData: boolean;
   appOrigin: string;

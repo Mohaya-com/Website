@@ -8,6 +8,9 @@ import {
   staffUserUpdateSchema,
   villaSchema,
   villaUpdateSchema,
+  whatsappConfigSchema,
+  whatsappEnableSchema,
+  whatsappTestSchema,
   PAGE_SIZE_MAX,
 } from '@vms/shared';
 import { requirePermission, requireStaff } from '../../auth/principal';
@@ -27,6 +30,14 @@ import {
   villaOptions,
 } from '../../services/admin';
 import { getSettings, updateSettings } from '../../services/settings';
+import {
+  getWhatsAppStatus,
+  refreshWhatsAppStatus,
+  removeWhatsAppConfig,
+  saveWhatsAppConfig,
+  sendWhatsAppTest,
+  setWhatsAppEnabled,
+} from '../../services/whatsapp';
 import type { RouteDef } from '../core';
 
 const villaListQuery = z.object({
@@ -167,6 +178,64 @@ export const adminRoutes: RouteDef[] = [
       const admin = requirePermission(rc.principal, 'settings.manage');
       const input = await rc.body(settingsUpdateSchema);
       return inTransaction(rc.ctx, (scope) => updateSettings(rc.ctx, scope, admin, input));
+    },
+  },
+
+  // WhatsApp connection for visitor verification codes (administrators only; the token is never returned)
+  {
+    method: 'GET',
+    path: '/settings/whatsapp',
+    auth: 'staff',
+    handler: async (rc) => {
+      requirePermission(rc.principal, 'settings.manage');
+      return getWhatsAppStatus(rc.ctx);
+    },
+  },
+  {
+    method: 'PUT',
+    path: '/settings/whatsapp',
+    auth: 'staff',
+    handler: async (rc) => {
+      const admin = requirePermission(rc.principal, 'settings.manage');
+      return saveWhatsAppConfig(rc.ctx, admin, await rc.body(whatsappConfigSchema), rc.meta);
+    },
+  },
+  {
+    method: 'DELETE',
+    path: '/settings/whatsapp',
+    auth: 'staff',
+    handler: async (rc) => {
+      const admin = requirePermission(rc.principal, 'settings.manage');
+      return removeWhatsAppConfig(rc.ctx, admin, rc.meta);
+    },
+  },
+  {
+    method: 'POST',
+    path: '/settings/whatsapp/refresh',
+    auth: 'staff',
+    handler: async (rc) => {
+      requirePermission(rc.principal, 'settings.manage');
+      return refreshWhatsAppStatus(rc.ctx);
+    },
+  },
+  {
+    method: 'POST',
+    path: '/settings/whatsapp/enabled',
+    auth: 'staff',
+    handler: async (rc) => {
+      const admin = requirePermission(rc.principal, 'settings.manage');
+      const { enabled } = await rc.body(whatsappEnableSchema);
+      return setWhatsAppEnabled(rc.ctx, admin, enabled, rc.meta);
+    },
+  },
+  {
+    method: 'POST',
+    path: '/settings/whatsapp/test',
+    auth: 'staff',
+    handler: async (rc) => {
+      const admin = requirePermission(rc.principal, 'settings.manage');
+      const { mobile } = await rc.body(whatsappTestSchema);
+      return sendWhatsAppTest(rc.ctx, admin, mobile, rc.meta);
     },
   },
 

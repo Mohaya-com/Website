@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast';
 import { api, isApiError } from '@/lib/api';
 import { useFormat } from '@/lib/hooks';
 import { useI18n } from '@/lib/i18n';
+import { WhatsAppSettings } from '@/components/whatsapp-settings';
 
 const NUMBER_FIELDS = ['defaultVisitDurationMinutes', 'maxVisitDurationMinutes', 'entryWindowEarlyMinutes', 'entryWindowLateMinutes', 'maxAdvanceBookingDays', 'overdueGraceMinutes'] as const;
 
@@ -94,6 +95,9 @@ export default function SettingsPage() {
           </Button>
         </div>
       </form>
+      <div className="mt-8">
+        <WhatsAppSettings />
+      </div>
     </div>
   );
 }

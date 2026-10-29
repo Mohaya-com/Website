@@ -1,7 +1,7 @@
 'use client';
 
 import { BriefcaseBusiness, CalendarDays, Ellipsis, Package, Users, Wrench } from 'lucide-react';
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   DURATION_PRESETS_MINUTES,
@@ -205,6 +205,23 @@ export function DocumentExpiryInput({ value, onChange, error }: { value: ExpiryV
 
 export function useVillaOptions() {
   return useQuery({ queryKey: ['villa-options'], queryFn: () => api<{ items: VillaDTO[] }>('/villas/options'), staleTime: 5 * 60_000 });
+}
+
+/** Free-text villa number (Arabic digits accepted); suggests numbers already on file. */
+export function VillaNumberInput({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
+  const { t } = useI18n();
+  const { data } = useVillaOptions();
+  const listId = useId();
+  return (
+    <Field label={t('fields.villa')} required error={error} hint={t('request.villaNumberHint')}>
+      {(a) => (
+        <>
+          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} list={listId} className="ltr-nums text-lg font-semibold" value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
+          <datalist id={listId}>{data?.items.map((v) => <option key={v.id} value={v.number} />)}</datalist>
+        </>
+      )}
+    </Field>
+  );
 }
 
 export function VillaSelect({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
