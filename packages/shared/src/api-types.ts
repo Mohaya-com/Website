@@ -335,7 +335,7 @@ export interface PublicConfigDTO {
   maxAdvanceBookingDays: number;
   identityChecksumValidation: boolean;
   allowVisitorSelfRegistration: boolean;
-  sms: { provider: 'dev' | 'twilio' | 'disabled'; available: boolean; developmentMode: boolean };
+  sms: { provider: 'dev' | 'twilio' | 'whatsapp' | 'disabled'; available: boolean; developmentMode: boolean };
   push: { enabled: boolean };
   demoData: boolean;
   appOrigin: string;
