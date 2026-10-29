@@ -1,0 +1,33 @@
+{
+  "name": "@vms/server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared backend: Fetch-standard API, authorization, business rules, providers and scripts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "seed": "tsx src/scripts/seed.ts",
+    "create-admin": "tsx src/scripts/create-admin.ts",
+    "maintenance": "tsx src/scripts/maintenance.ts"
+  },
+  "dependencies": {
+    "@vms/db": "workspace:*",
+    "@vms/shared": "workspace:*",
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "vitest": "^5.0.5"
+  }
+}

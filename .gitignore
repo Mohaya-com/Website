@@ -1,0 +1,39 @@
+node_modules/
+.pnpm-store/
+
+# env files (keep the examples)
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# builds
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# expo
+.expo/
+.expo-shared/
+apps/mobile/ios/
+apps/mobile/android/
+apps/mobile/dist/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# misc
+.DS_Store
+*.log
+.vscode/
+.idea/
+.screenshots/

@@ -1,0 +1,23 @@
+{
+  "name": "compound-vms",
+  "private": true,
+  "description": "Visitor Management System for a residential compound — web, mobile and shared backend",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev:web": "pnpm --filter @vms/web dev",
+    "dev:mobile": "pnpm --filter @vms/mobile start",
+    "build:web": "pnpm --filter @vms/web build",
+    "start:web": "pnpm --filter @vms/web start",
+    "db:migrate": "pnpm --filter @vms/db migrate",
+    "db:generate": "pnpm --filter @vms/db generate",
+    "db:seed": "pnpm --filter @vms/server seed",
+    "admin:create": "pnpm --filter @vms/server create-admin",
+    "maintenance": "pnpm --filter @vms/server maintenance",
+    "test": "pnpm --filter @vms/shared test && pnpm --filter @vms/server test",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "check": "pnpm typecheck && pnpm test"
+  }
+}
