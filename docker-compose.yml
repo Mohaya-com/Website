@@ -1,0 +1,17 @@
+# Local PostgreSQL for development. Not a production configuration.
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vms
+      POSTGRES_PASSWORD: vms_dev_password
+      POSTGRES_DB: vms
+    ports:
+      - "5432:5432"
+    volumes:
+      - vms_pgdata:/var/lib/postgresql/data
+      - ./packages/db/docker-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+
+volumes:
+  vms_pgdata:
