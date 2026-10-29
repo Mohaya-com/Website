@@ -5,8 +5,8 @@ import { describeError, logger } from '../logger';
 export interface SmsMessage {
   to: string;
   body: string;
-  /** Only the development provider reads this, to show codes on the /dev/otp page. */
-  devCode?: string;
+  /** The verification code: template-based channels (WhatsApp) and the /dev/otp page send it on its own. */
+  code: string;
 }
 
 export interface SmsProvider {
@@ -30,7 +30,7 @@ export class DevSmsProvider implements SmsProvider {
   readonly outbox: DevOtpMessageDTO[] = [];
 
   async send(message: SmsMessage): Promise<void> {
-    const entry: DevOtpMessageDTO = { to: maskPhone(message.to), code: message.devCode ?? '', createdAt: new Date().toISOString() };
+    const entry: DevOtpMessageDTO = { to: maskPhone(message.to), code: message.code, createdAt: new Date().toISOString() };
     this.outbox.unshift(entry);
     this.outbox.length = Math.min(this.outbox.length, 50);
     // eslint-disable-next-line no-console
@@ -72,6 +72,42 @@ export class TwilioSmsProvider implements SmsProvider {
   }
 }
 
+/**
+ * WhatsApp Cloud API (Meta). Sends an approved "authentication" template whose body and
+ * copy-code button carry the code. Requires real credentials; delivery is not verified by this code.
+ */
+export class WhatsAppCloudProvider implements SmsProvider {
+  readonly name = 'whatsapp' as const;
+  readonly available = true;
+  readonly isDevelopment = false;
+  constructor(private readonly cfg: ServerConfig['sms']['whatsapp']) {}
+
+  async send(message: SmsMessage): Promise<void> {
+    const res = await fetch(`https://graph.facebook.com/${this.cfg.apiVersion}/${encodeURIComponent(this.cfg.phoneNumberId)}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.cfg.accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: message.to.replace(/^\+/, ''),
+        type: 'template',
+        template: {
+          name: this.cfg.templateName,
+          language: { code: this.cfg.templateLanguage },
+          components: [
+            { type: 'body', parameters: [{ type: 'text', text: message.code }] },
+            { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: message.code }] },
+          ],
+        },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      // Do not log the response body: it echoes the destination number.
+      throw new Error(`WhatsApp Cloud API responded with HTTP ${res.status}`);
+    }
+  }
+}
+
 export function createSmsProvider(config: ServerConfig): SmsProvider {
   switch (config.sms.provider) {
     case 'dev':
@@ -79,6 +115,8 @@ export function createSmsProvider(config: ServerConfig): SmsProvider {
       return new DevSmsProvider();
     case 'twilio':
       return new TwilioSmsProvider(config.sms.twilio);
+    case 'whatsapp':
+      return new WhatsAppCloudProvider(config.sms.whatsapp);
     default:
       return new DisabledSmsProvider();
   }

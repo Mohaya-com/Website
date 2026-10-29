@@ -72,7 +72,7 @@ export async function requestVisitorOtp(
     createdAt: now,
   });
 
-  if (deliver) sendInBackground(ctx.sms, { to: input.mobile, body: otpMessage(locale, code), devCode: code });
+  if (deliver) sendInBackground(ctx.sms, { to: input.mobile, body: otpMessage(locale, code), code });
 
   return {
     challengeId: id,
