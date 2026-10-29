@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { reloadAppAsync } from 'expo';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { DevSettings, I18nManager } from 'react-native';
+import { DevSettings, I18nManager, Platform } from 'react-native';
 import { DEFAULT_LOCALE, createTranslator, isLocale, type Locale, type Translator } from '@vms/shared';
 
 const LOCALE_KEY = 'vms.locale';
@@ -43,6 +43,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       const next: Locale = isLocale(stored) ? stored : DEFAULT_LOCALE;
       setLocaleState(next);
       const wantRTL = next === 'ar';
+      if (Platform.OS === 'web') {
+        // react-native-web follows the document direction; no reload needed.
+        document.documentElement.dir = wantRTL ? 'rtl' : 'ltr';
+        document.documentElement.lang = next;
+        setReady(true);
+        return;
+      }
       I18nManager.allowRTL(true);
       if (I18nManager.isRTL !== wantRTL) {
         I18nManager.forceRTL(wantRTL);
@@ -57,6 +64,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(LOCALE_KEY, next).catch(() => undefined);
     setLocaleState(next);
     const wantRTL = next === 'ar';
+    if (Platform.OS === 'web') {
+      document.documentElement.dir = wantRTL ? 'rtl' : 'ltr';
+      document.documentElement.lang = next;
+      return;
+    }
     if (I18nManager.isRTL !== wantRTL) {
       I18nManager.allowRTL(true);
       I18nManager.forceRTL(wantRTL);
@@ -64,7 +76,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const value = useMemo<I18nValue>(() => ({ t: createTranslator(locale), locale, isRTL: I18nManager.isRTL, setLocale, ready }), [locale, setLocale, ready]);
+  const value = useMemo<I18nValue>(() => ({ t: createTranslator(locale), locale, isRTL: Platform.OS === 'web' ? locale === 'ar' : I18nManager.isRTL, setLocale, ready }), [locale, setLocale, ready]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

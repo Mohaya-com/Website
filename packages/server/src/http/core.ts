@@ -128,7 +128,7 @@ function corsHeaders(ctx: ServerContext, origin: string | null): Record<string, 
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client, Accept, Cache-Control, X-Requested-With',
     'Access-Control-Max-Age': '600',
     Vary: 'Origin',
   };

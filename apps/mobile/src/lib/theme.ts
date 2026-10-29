@@ -1,4 +1,4 @@
-import { I18nManager } from 'react-native';
+import { I18nManager, Platform } from 'react-native';
 
 /** Design tokens shared by all screens (navy, white, teal accents, soft neutrals). */
 export const colors = {
@@ -73,7 +73,8 @@ export const shadow = {
 export const TOUCH = 48;
 
 /** Flip directional icons (arrows, chevrons) in right-to-left layouts. */
-export const flipX = () => ({ transform: [{ scaleX: I18nManager.isRTL ? -1 : 1 }] });
+export const isRTL = () => (Platform.OS === 'web' ? typeof document !== 'undefined' && document.documentElement.dir === 'rtl' : I18nManager.isRTL);
+export const flipX = () => ({ transform: [{ scaleX: isRTL() ? -1 : 1 }] });
 
 /** Wrap numbers/IDs so they render left-to-right inside Arabic text. */
 export const ltr = (value: string | number | null | undefined) => (value === null || value === undefined ? '' : `⁦${value}⁩`);

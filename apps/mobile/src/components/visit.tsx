@@ -91,9 +91,9 @@ export function VisitCard({ visit, onPress, showVisitor, footer }: { visit: Visi
         </Row>
         {showVisitor && visit.visitor ? <AppText variant="subheading">{visit.visitor.fullName}</AppText> : null}
         <AppText weight="bold">{fmt.dateTime(visit.requestedEntryAt)}</AppText>
-        <Row gap={4} style={{ flexWrap: 'wrap' }}>
-          <MapPin size={14} color={colors.muted} />
-          <AppText variant="caption">
+        <Row gap={4} align="flex-start">
+          <MapPin size={14} color={colors.muted} style={{ marginTop: 3 }} />
+          <AppText variant="caption" style={{ flexShrink: 1 }}>
             {t('fields.villa')} {ltr(visit.villa.number)} · {labels.reason(visit)} · {fmt.duration(visit.durationMinutes)}
           </AppText>
         </Row>

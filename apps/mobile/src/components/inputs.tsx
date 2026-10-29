@@ -154,7 +154,7 @@ export function PhoneInput({ value, onChange, error }: { value: PhoneValue; onCh
           accessibilityLabel={t('fields.mobile')}
           invalid={Boolean(error)}
           ltrInput
-          style={{ flex: 1, fontSize: 18 }}
+          style={{ flex: 1, minWidth: 0, fontSize: 18 }}
         />
       </View>
       <SelectSheet

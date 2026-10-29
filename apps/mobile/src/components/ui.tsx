@@ -48,7 +48,12 @@ export function AppText({ variant = 'body', weight, color, align, style, ...rest
       maxFontSizeMultiplier={1.6}
       style={[
         base,
-        { fontFamily: fonts[weight ?? defaultWeight], textAlign: align === 'center' ? 'center' : align === 'end' ? 'right' : 'left', writingDirection: 'auto' },
+        {
+          fontFamily: fonts[weight ?? defaultWeight],
+          // Native swaps left/right in RTL; react-native-web needs logical values.
+          textAlign: (Platform.OS === 'web' ? (align === 'center' ? 'center' : align === 'end' ? 'end' : 'start') : align === 'center' ? 'center' : align === 'end' ? 'right' : 'left') as TextStyle['textAlign'],
+          writingDirection: 'auto',
+        },
         color ? { color } : null,
         style,
       ]}
