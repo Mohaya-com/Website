@@ -3,6 +3,7 @@ import type { DevSmsProvider } from '../../providers/sms';
 import { enforceRateLimit, RATE_LIMITS } from '../../rate-limit';
 import { findGateByCode } from '../../services/admin';
 import { getSettings, isDemoData } from '../../services/settings';
+import { resolveSmsProvider } from '../../services/whatsapp';
 import type { RouteDef } from '../core';
 
 export const publicRoutes: RouteDef[] = [
@@ -21,6 +22,7 @@ export const publicRoutes: RouteDef[] = [
     auth: 'public',
     handler: async (rc): Promise<PublicConfigDTO> => {
       const s = await getSettings(rc.ctx);
+      const sms = await resolveSmsProvider(rc.ctx);
       const now = rc.ctx.clock.now();
       return {
         compoundNameAr: s.compoundNameAr,
@@ -33,7 +35,7 @@ export const publicRoutes: RouteDef[] = [
         maxAdvanceBookingDays: s.maxAdvanceBookingDays,
         identityChecksumValidation: s.identityChecksumValidation,
         allowVisitorSelfRegistration: s.allowVisitorSelfRegistration,
-        sms: { provider: rc.ctx.sms.name, available: rc.ctx.sms.available, developmentMode: rc.ctx.sms.isDevelopment },
+        sms: { provider: sms.name, available: sms.available, developmentMode: sms.isDevelopment },
         push: { enabled: rc.ctx.push.enabled },
         demoData: await isDemoData(rc.ctx.db),
         appOrigin: rc.ctx.config.appOrigin,

@@ -8,6 +8,7 @@ import { sendInBackground } from '../providers/sms';
 import { enforceRateLimit, RATE_LIMITS } from '../rate-limit';
 import { audit } from '../services/audit';
 import { getSettings } from '../services/settings';
+import { resolveSmsProvider } from '../services/whatsapp';
 import type { Principal } from './principal';
 import { createSession, resolveSession } from './sessions';
 import type { RequestMeta } from './staff';
@@ -36,7 +37,8 @@ export async function requestVisitorOtp(
   input: { documentType: DocumentType; documentNumber: string; mobile: string; locale?: Locale | undefined },
   meta: RequestMeta,
 ): Promise<OtpChallengeDTO> {
-  if (!ctx.sms.available) throw new ApiError(503, 'sms_unavailable');
+  const sms = await resolveSmsProvider(ctx);
+  if (!sms.available) throw new ApiError(503, 'sms_unavailable');
   await enforceRateLimit(ctx, RATE_LIMITS.otpRequestIp, meta.ip);
   await enforceRateLimit(ctx, RATE_LIMITS.otpResendCooldown, `${input.documentNumber}|${input.mobile}`);
   await enforceRateLimit(ctx, RATE_LIMITS.otpRequestDocument, input.documentNumber);
@@ -72,13 +74,13 @@ export async function requestVisitorOtp(
     createdAt: now,
   });
 
-  if (deliver) sendInBackground(ctx.sms, { to: input.mobile, body: otpMessage(locale, code), code });
+  if (deliver) sendInBackground(sms, { to: input.mobile, body: otpMessage(locale, code), code });
 
   return {
     challengeId: id,
     expiresInSeconds: OTP.ttlSeconds,
     resendAfterSeconds: OTP.resendAfterSeconds,
-    developmentDelivery: ctx.sms.isDevelopment,
+    developmentDelivery: sms.isDevelopment,
   };
 }
 

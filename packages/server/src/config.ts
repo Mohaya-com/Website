@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export type SmsProviderName = 'dev' | 'twilio' | 'whatsapp' | 'disabled';
+
+/** Graph API version for WhatsApp Cloud API calls (v25.0 is supported until July 2028). */
+export const WHATSAPP_DEFAULT_API_VERSION = 'v25.0';
 export type PushProviderName = 'none' | 'expo';
 
 export interface ServerConfig {
@@ -126,8 +129,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID?.trim() ?? '',
     templateName: env.WHATSAPP_TEMPLATE_NAME?.trim() || 'otp_code',
     templateLanguage: env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || 'ar',
-    apiVersion: env.WHATSAPP_API_VERSION?.trim() || 'v21.0',
+    apiVersion: env.WHATSAPP_API_VERSION?.trim() || WHATSAPP_DEFAULT_API_VERSION,
   };
+  if (!/^v\d{1,3}\.\d$/.test(whatsapp.apiVersion)) problems.push('WHATSAPP_API_VERSION must look like v25.0');
   if (smsProvider === 'whatsapp' && (!whatsapp.accessToken || !whatsapp.phoneNumberId)) {
     problems.push('SMS_PROVIDER=whatsapp requires WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID');
   }

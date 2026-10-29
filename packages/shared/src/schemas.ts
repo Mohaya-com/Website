@@ -368,6 +368,33 @@ export const staffUserUpdateSchema = z.object({
 
 export const settingsUpdateSchema = systemSettingsSchema;
 
+/** Meta object IDs (phone number, WhatsApp Business Account) are long numeric strings. */
+const metaIdSchema = z
+  .string(e('validation.required'))
+  .transform((v) => normalizeDigits(v).replace(/\s+/g, ''))
+  .pipe(z.string().regex(/^\d{6,25}$/, e('validation.whatsappId')));
+
+/** WhatsApp Cloud API connection entered by an administrator. An empty token keeps the stored one. */
+export const whatsappConfigSchema = z.object({
+  phoneNumberId: metaIdSchema,
+  businessAccountId: metaIdSchema,
+  accessToken: z
+    .string()
+    .trim()
+    .max(2048, e('validation.tooLong'))
+    .refine((v) => v === '' || /^[A-Za-z0-9._|-]{20,}$/.test(v), e('validation.whatsappToken'))
+    .optional(),
+  templateName: z.string().trim().regex(/^[a-z0-9_]{1,512}$/, e('validation.whatsappTemplateName')).default('otp_code'),
+  templateLanguage: z.string().trim().regex(/^[a-z]{2,3}(_[A-Z]{2})?$/, e('validation.invalid')).default('ar'),
+});
+export type WhatsAppConfigInput = z.input<typeof whatsappConfigSchema>;
+
+export const whatsappEnableSchema = z.object({ enabled: z.boolean() });
+
+export const whatsappTestSchema = mobileInputSchema
+  .superRefine((v, ctx) => refineMobile(v, ctx))
+  .transform(finalizeMobile);
+
 export const localeUpdateSchema = z.object({ locale: z.enum(LOCALES) });
 
 export const pushTokenSchema = z.object({

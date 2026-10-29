@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, randomInt, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, hkdfSync, randomBytes, randomInt, scrypt as scryptCb, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, options: { N: number; r: number; p: number; maxmem: number }) => Promise<Buffer>;
@@ -51,6 +51,36 @@ export function generateTemporaryPassword(): string {
   let core = '';
   for (let i = 0; i < 14; i++) core += alphabet[bytes[i]! % alphabet.length];
   return `${core.slice(0, 5)}-${core.slice(5, 10)}-${core.slice(10)}${randomInt(10, 99)}`;
+}
+
+// ───────────────────────────── Secrets at rest (AES-256-GCM) ─────────────────────────────
+
+function sealKey(secret: string, purpose: string): Buffer {
+  return Buffer.from(hkdfSync('sha256', secret, 'vms-sealed-secret', purpose, 32));
+}
+
+/** Encrypts a credential for storage. The key is derived from a server secret and a purpose label. */
+export function sealSecret(secret: string, purpose: string, plaintext: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', sealKey(secret, purpose), iv);
+  const body = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final(), cipher.getAuthTag()]);
+  return `v1.${iv.toString('base64url')}.${body.toString('base64url')}`;
+}
+
+/** Returns null when the value was sealed with another secret or has been altered. */
+export function openSecret(secret: string, purpose: string, sealed: string): string | null {
+  const [version, ivPart, bodyPart] = sealed.split('.');
+  if (version !== 'v1' || !ivPart || !bodyPart) return null;
+  try {
+    const iv = Buffer.from(ivPart, 'base64url');
+    const body = Buffer.from(bodyPart, 'base64url');
+    if (iv.length !== 12 || body.length < 17) return null;
+    const decipher = createDecipheriv('aes-256-gcm', sealKey(secret, purpose), iv);
+    decipher.setAuthTag(body.subarray(body.length - 16));
+    return Buffer.concat([decipher.update(body.subarray(0, body.length - 16)), decipher.final()]).toString('utf8');
+  } catch {
+    return null;
+  }
 }
 
 // ───────────────────────────── Password hashing (scrypt) ─────────────────────────────

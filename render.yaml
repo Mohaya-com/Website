@@ -26,7 +26,8 @@ services:
       # One-time web setup of the first administrator at /setup.
       - key: SETUP_TOKEN
         generateValue: true
-      # Set in the Render dashboard (Environment). Empty = disabled; "whatsapp" = see deploy/WHATSAPP.ar.md.
+      # Leave empty: WhatsApp is connected from the admin settings page (deploy/WHATSAPP.ar.md).
+      # Setting a provider here overrides that page.
       - key: SMS_PROVIDER
         sync: false
       - key: WHATSAPP_ACCESS_TOKEN

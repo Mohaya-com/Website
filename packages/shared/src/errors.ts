@@ -28,6 +28,17 @@ export const API_ERROR_CODES = [
   'last_admin',
   'username_taken',
   'villa_taken',
+  'whatsapp_not_configured',
+  'whatsapp_token_invalid',
+  'whatsapp_token_unreadable',
+  'whatsapp_permission_missing',
+  'whatsapp_wrong_id',
+  'whatsapp_phone_not_in_account',
+  'whatsapp_template_failed',
+  'whatsapp_template_not_approved',
+  'whatsapp_recipient_not_allowed',
+  'whatsapp_send_failed',
+  'whatsapp_unreachable',
   'internal_error',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
