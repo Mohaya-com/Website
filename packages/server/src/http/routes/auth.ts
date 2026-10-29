@@ -63,13 +63,15 @@ export const authRoutes: RouteDef[] = [
     },
   },
   {
+    // Returns null (not 401) when signed out, so clients can probe the session without error noise.
     method: 'GET',
     path: '/auth/session',
-    auth: 'any',
+    auth: 'public',
     allowPasswordChange: true,
     handler: async (rc) => {
+      if (!rc.principal) return json(200, null);
       const settings = await getSettings(rc.ctx);
-      return toSessionInfo(rc.principal!, rc.ctx.clock.now(), settings.timezone);
+      return toSessionInfo(rc.principal, rc.ctx.clock.now(), settings.timezone);
     },
   },
   {

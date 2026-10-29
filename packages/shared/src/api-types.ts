@@ -150,6 +150,7 @@ export interface GateDTO {
 }
 
 export interface PublicGateDTO {
+  id: string;
   code: string;
   nameAr: string;
   nameEn: string;

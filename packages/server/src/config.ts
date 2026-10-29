@@ -44,10 +44,12 @@ function int(value: string | undefined, fallback: number): number {
 
 /** Loads the repository-root .env when present (for scripts and tests; Next.js loads it via next.config). */
 export function loadRootEnv(startDir: string = process.cwd()): void {
-  let dir = path.resolve(startDir);
+  // Inside Next.js the root .env is loaded by next.config.ts; avoid filesystem probing (and bundle tracing).
+  if (process.env.NEXT_RUNTIME) return;
+  let dir = path.resolve(/*turbopackIgnore: true*/ startDir);
   for (let i = 0; i < 6; i++) {
-    const candidate = path.join(dir, '.env');
-    if (fs.existsSync(candidate) && fs.existsSync(path.join(dir, 'pnpm-workspace.yaml'))) {
+    const candidate = path.join(/*turbopackIgnore: true*/ dir, '.env');
+    if (fs.existsSync(candidate) && fs.existsSync(path.join(/*turbopackIgnore: true*/ dir, 'pnpm-workspace.yaml'))) {
       try {
         process.loadEnvFile(candidate);
       } catch {

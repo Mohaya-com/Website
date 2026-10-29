@@ -1,5 +1,5 @@
 import { ApiError, GATE_CODE_PATTERN, timeZoneOffsetMinutes, type PublicConfigDTO, type PublicGateDTO } from '@vms/shared';
-import { DevSmsProvider } from '../../providers/sms';
+import type { DevSmsProvider } from '../../providers/sms';
 import { enforceRateLimit, RATE_LIMITS } from '../../rate-limit';
 import { findGateByCode } from '../../services/admin';
 import { getSettings, isDemoData } from '../../services/settings';
@@ -51,7 +51,7 @@ export const publicRoutes: RouteDef[] = [
       if (!GATE_CODE_PATTERN.test(code)) throw new ApiError(404, 'not_found');
       const gate = await findGateByCode(rc.ctx.db, code);
       if (!gate) throw new ApiError(404, 'not_found');
-      return { code: gate.code, nameAr: gate.nameAr, nameEn: gate.nameEn, supportsEntry: gate.supportsEntry, supportsExit: gate.supportsExit };
+      return { id: gate.id, code: gate.code, nameAr: gate.nameAr, nameEn: gate.nameEn, supportsEntry: gate.supportsEntry, supportsExit: gate.supportsExit };
     },
   },
   {
@@ -60,8 +60,9 @@ export const publicRoutes: RouteDef[] = [
     path: '/dev/otp-outbox',
     auth: 'public',
     handler: async (rc) => {
-      if (rc.ctx.config.isProduction || !(rc.ctx.sms instanceof DevSmsProvider)) throw new ApiError(404, 'not_found');
-      return { items: rc.ctx.sms.outbox };
+      const sms = rc.ctx.sms as Partial<DevSmsProvider>;
+      if (rc.ctx.config.isProduction || rc.ctx.sms.name !== 'dev' || !Array.isArray(sms.outbox)) throw new ApiError(404, 'not_found');
+      return { items: sms.outbox };
     },
   },
 ];

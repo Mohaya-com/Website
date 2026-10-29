@@ -11,12 +11,11 @@ export function createApi(ctx: ServerContext): Router {
   return createRouter(ctx, [...publicRoutes, ...authRoutes, ...visitorSelfRoutes, ...staffRoutes, ...adminRoutes, ...notificationRoutes, ...eventRoutes]);
 }
 
-const ROUTER_KEY = Symbol.for('vms.apiRouter');
-type GlobalWithRouter = typeof globalThis & { [ROUTER_KEY]?: Router };
+// Module-level cache: rebuilt on hot reload in development, while the database context stays process-wide.
+let router: Router | null = null;
 
 /** Fetch-standard entry point. Mount it under /api/v1 in any server (Next.js route handler, Node, Bun, etc.). */
 export async function handleApiRequest(req: Request): Promise<Response> {
-  const g = globalThis as GlobalWithRouter;
-  g[ROUTER_KEY] ??= createApi(getServerContext());
-  return g[ROUTER_KEY].handle(req);
+  router ??= createApi(getServerContext());
+  return router.handle(req);
 }
