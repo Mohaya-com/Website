@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export type SmsProviderName = 'dev' | 'twilio' | 'disabled';
+export type SmsProviderName = 'dev' | 'twilio' | 'whatsapp' | 'disabled';
 export type PushProviderName = 'none' | 'expo';
 
 export interface ServerConfig {
@@ -19,6 +19,7 @@ export interface ServerConfig {
   sms: {
     provider: SmsProviderName;
     twilio: { accountSid: string; authToken: string; from: string; messagingServiceSid: string };
+    whatsapp: { accessToken: string; phoneNumberId: string; templateName: string; templateLanguage: string; apiVersion: string };
   };
   push: { provider: PushProviderName; expoAccessToken: string | null };
   sessions: { staffIdleHours: number; staffMaxDays: number; visitorMaxDays: number; registrantMinutes: number };
@@ -107,8 +108,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const setupToken = env.SETUP_TOKEN?.trim() || null;
   if (setupToken && setupToken.length < 32) problems.push('SETUP_TOKEN must be at least 32 characters');
 
-  const smsProvider = (env.SMS_PROVIDER ?? (isProduction ? 'disabled' : 'dev')) as SmsProviderName;
-  if (!['dev', 'twilio', 'disabled'].includes(smsProvider)) problems.push(`Unknown SMS_PROVIDER "${smsProvider}"`);
+  const smsProvider = (env.SMS_PROVIDER?.trim() || (isProduction ? 'disabled' : 'dev')) as SmsProviderName;
+  if (!['dev', 'twilio', 'whatsapp', 'disabled'].includes(smsProvider)) problems.push(`Unknown SMS_PROVIDER "${smsProvider}"`);
   if (smsProvider === 'dev' && isProduction) problems.push('SMS_PROVIDER=dev is a development-only provider and cannot run in production');
   const twilio = {
     accountSid: env.TWILIO_ACCOUNT_SID ?? '',
@@ -118,6 +119,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   };
   if (smsProvider === 'twilio' && (!twilio.accountSid || !twilio.authToken || (!twilio.from && !twilio.messagingServiceSid))) {
     problems.push('SMS_PROVIDER=twilio requires TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM or TWILIO_MESSAGING_SERVICE_SID');
+  }
+
+  const whatsapp = {
+    accessToken: env.WHATSAPP_ACCESS_TOKEN?.trim() ?? '',
+    phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID?.trim() ?? '',
+    templateName: env.WHATSAPP_TEMPLATE_NAME?.trim() || 'otp_code',
+    templateLanguage: env.WHATSAPP_TEMPLATE_LANGUAGE?.trim() || 'ar',
+    apiVersion: env.WHATSAPP_API_VERSION?.trim() || 'v21.0',
+  };
+  if (smsProvider === 'whatsapp' && (!whatsapp.accessToken || !whatsapp.phoneNumberId)) {
+    problems.push('SMS_PROVIDER=whatsapp requires WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID');
   }
 
   const pushProvider = (env.PUSH_PROVIDER ?? 'none') as PushProviderName;
@@ -137,7 +149,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     passTokenSecret,
     otpSecret,
     setupToken,
-    sms: { provider: smsProvider, twilio },
+    sms: { provider: smsProvider, twilio, whatsapp },
     push: { provider: pushProvider, expoAccessToken: env.EXPO_ACCESS_TOKEN?.trim() || null },
     sessions: {
       staffIdleHours: int(env.STAFF_SESSION_IDLE_HOURS, 12),

@@ -26,8 +26,17 @@ services:
       # One-time web setup of the first administrator at /setup.
       - key: SETUP_TOKEN
         generateValue: true
+      # Set in the Render dashboard (Environment). Empty = disabled; "whatsapp" = see deploy/WHATSAPP.ar.md.
       - key: SMS_PROVIDER
-        value: disabled
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_TEMPLATE_NAME
+        value: otp_code
+      - key: WHATSAPP_TEMPLATE_LANGUAGE
+        value: ar
       - key: PUSH_PROVIDER
         value: none
       - key: DATABASE_POOL_MAX
