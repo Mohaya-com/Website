@@ -7,6 +7,11 @@
 set -e
 cd /app
 
+# Render provides the public URL of the service; use it when APP_ORIGIN is not set.
+if [ -z "$APP_ORIGIN" ] && [ -n "$RENDER_EXTERNAL_URL" ]; then
+  export APP_ORIGIN="$RENDER_EXTERNAL_URL"
+fi
+
 case "$1" in
   web)
     if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then

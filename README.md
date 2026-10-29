@@ -379,7 +379,7 @@ docker compose up -d --build
 docker compose exec web docker-entrypoint.sh create-admin --username admin --name "Admin"
 ```
 
-The full step-by-step guide in Arabic is [deploy/README.ar.md](deploy/README.ar.md).
+The full step-by-step guide in Arabic is [deploy/README.ar.md](deploy/README.ar.md). Without a server, use the Render Blueprint in `render.yaml` ([deploy/RENDER.ar.md](deploy/RENDER.ar.md)).
 
 ## Production checklist
 
