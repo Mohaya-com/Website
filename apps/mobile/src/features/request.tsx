@@ -3,27 +3,27 @@ import { CheckCircle2, ClipboardCopy, Pencil } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 import { computeExpectedExit, validateRequestTiming, type PublicConfigDTO, type VisitDTO, type VisitReason } from '@vms/shared';
-import { ReasonPicker, SchedulePicker, VillaPicker, scheduleToEntry, type ScheduleValue } from '@/components/inputs';
+import { ReasonPicker, SchedulePicker, VillaNumberInput, scheduleToEntry, type ScheduleValue } from '@/components/inputs';
 import { AppText, Button, Card, Detail, DetailGrid, Field, Input, Row } from '@/components/ui';
 import { StatusBadge } from '@/components/visit';
-import { useFormat, useVillaOptions } from '@/lib/hooks';
+import { useFormat } from '@/lib/hooks';
 import { useI18n } from '@/lib/i18n';
 import { colors, ltr, radius, space } from '@/lib/theme';
 
 export interface VisitDraft {
-  villaId: string;
+  villaNumber: string;
   reason: VisitReason | null;
   reasonDetails: string;
   schedule: ScheduleValue;
   requestedGateId: string | null;
 }
 
-export type DraftErrors = Partial<Record<'villaId' | 'reason' | 'reasonDetails' | 'entry' | 'duration', string>>;
+export type DraftErrors = Partial<Record<'villaNumber' | 'reason' | 'reasonDetails' | 'entry' | 'duration', string>>;
 
 /** Mirrors the server rules for immediate feedback; the server re-validates everything. */
 export function validateDraft(draft: VisitDraft, config: PublicConfigDTO | undefined, documentExpiryDate?: string | null): DraftErrors {
   const errors: DraftErrors = {};
-  if (!draft.villaId) errors.villaId = 'validation.selectVilla';
+  if (!draft.villaNumber.trim()) errors.villaNumber = 'validation.villaRequired';
   if (!draft.reason) errors.reason = 'validation.required';
   if (draft.reason === 'other' && draft.reasonDetails.trim().length < 3) errors.reasonDetails = 'validation.reasonDetailsRequired';
   const entry = scheduleToEntry(draft.schedule, config?.timezone ?? 'Asia/Riyadh');
@@ -40,7 +40,7 @@ export function validateDraft(draft: VisitDraft, config: PublicConfigDTO | undef
 
 export function draftToBody(draft: VisitDraft, tz: string, clientRequestId: string) {
   return {
-    villaId: draft.villaId,
+    villaNumber: draft.villaNumber.trim(),
     reason: draft.reason!,
     reasonDetails: draft.reasonDetails.trim() || null,
     requestedEntryAt: scheduleToEntry(draft.schedule, tz)!.toISOString(),
@@ -52,7 +52,7 @@ export function draftToBody(draft: VisitDraft, tz: string, clientRequestId: stri
 
 export function serverErrorsToDraft(fields: Record<string, string>): DraftErrors {
   return {
-    ...(fields.villaId ? { villaId: fields.villaId } : {}),
+    ...(fields.villaNumber || fields.villaId ? { villaNumber: fields.villaNumber ?? fields.villaId } : {}),
     ...(fields.reason ? { reason: fields.reason } : {}),
     ...(fields.reasonDetails ? { reasonDetails: fields.reasonDetails } : {}),
     ...(fields.requestedEntryAt ? { entry: fields.requestedEntryAt } : {}),
@@ -96,7 +96,7 @@ export function VisitDetailsForm({ draft, onChange, errors, maxDurationMinutes }
   const { t } = useI18n();
   return (
     <Card style={{ gap: space.xl }}>
-      <VillaPicker value={draft.villaId} onChange={(villaId) => onChange({ ...draft, villaId })} error={errors.villaId} />
+      <VillaNumberInput value={draft.villaNumber} onChange={(villaNumber) => onChange({ ...draft, villaNumber })} error={errors.villaNumber} />
       <ReasonPicker value={draft.reason} onChange={(reason) => onChange({ ...draft, reason })} error={errors.reason} />
       {draft.reason === 'other' ? (
         <Field label={t('fields.reasonDetails')} required error={errors.reasonDetails}>
@@ -111,8 +111,6 @@ export function VisitDetailsForm({ draft, onChange, errors, maxDurationMinutes }
 export function VisitReview({ draft, visitorBlock, onEdit }: { draft: VisitDraft; visitorBlock?: ReactNode; onEdit: () => void }) {
   const { t } = useI18n();
   const fmt = useFormat();
-  const villas = useVillaOptions();
-  const villa = villas.data?.items.find((v) => v.id === draft.villaId);
   const entry = scheduleToEntry(draft.schedule, fmt.tz);
   return (
     <View style={{ gap: space.md }}>
@@ -123,7 +121,7 @@ export function VisitReview({ draft, visitorBlock, onEdit }: { draft: VisitDraft
           <Button title={t('common.edit')} variant="ghost" size="sm" icon={<Pencil size={16} color={colors.navy800} />} onPress={onEdit} />
         </Row>
         <DetailGrid>
-          <Detail label={t('fields.villa')} value={ltr(villa?.number ?? '—')} />
+          <Detail label={t('fields.villa')} value={ltr(draft.villaNumber.trim() || '—')} />
           <Detail label={t('fields.reason')} value={draft.reason ? (draft.reason === 'other' ? `${t('reasons.other')}: ${draft.reasonDetails}` : t(`reasons.${draft.reason}`)) : '—'} />
           <Detail label={t('fields.entryAt')} value={entry ? fmt.dateTime(entry) : '—'} />
           <Detail label={t('fields.duration')} value={fmt.duration(draft.schedule.durationMinutes)} />

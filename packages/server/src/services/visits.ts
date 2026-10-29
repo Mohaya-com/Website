@@ -26,7 +26,9 @@ import { loadSettings } from './settings';
 import { fetchVisitDTO, findOverlappingOpenVisit } from './visit-queries';
 
 export interface VisitDetailsInput {
-  villaId: string;
+  villaId?: string | undefined;
+  /** Typed villa number; a number not in the villa list yet is added automatically. */
+  villaNumber?: string | undefined;
   reason: VisitReason;
   reasonDetails?: string | null | undefined;
   requestedEntryAt: string;
@@ -60,9 +62,28 @@ async function currentVersionId(tx: DbExecutor, visitor: Visitor): Promise<strin
   return row.id;
 }
 
-async function assertVillaActive(tx: DbExecutor, villaId: string): Promise<{ id: string; number: string }> {
-  const [villa] = await tx.select().from(villas).where(eq(villas.id, villaId)).limit(1);
-  if (!villa || !villa.isActive) throw new ApiError(400, 'validation_error', { villaId: 'errors.villa_inactive' });
+/**
+ * Resolves the villa of a request: by id, or by the typed number. Unknown numbers are added to the
+ * villa list (audited) so administrators can review them; numbers an administrator disabled are refused.
+ */
+async function resolveVilla(scope: TxScope, principal: Submitter, ref: { villaId?: string | undefined; villaNumber?: string | undefined }): Promise<{ id: string; number: string }> {
+  const { tx, now } = scope;
+  if (!ref.villaNumber) {
+    const [villa] = ref.villaId ? await tx.select().from(villas).where(eq(villas.id, ref.villaId)).limit(1) : [];
+    if (!villa || !villa.isActive) throw new ApiError(400, 'validation_error', { villaNumber: 'errors.villa_inactive' });
+    return { id: villa.id, number: villa.number };
+  }
+  const number = ref.villaNumber;
+  let [villa] = await tx.select().from(villas).where(eq(villas.number, number)).limit(1);
+  if (!villa) {
+    const [created] = await tx.insert(villas).values({ number, label: null, isActive: true, createdAt: now, updatedAt: now }).onConflictDoNothing().returning();
+    if (created) {
+      await audit(tx, { actor: actorOf(principal), action: 'villa.created', entityType: 'villa', entityId: created.id, metadata: { number, auto: true }, at: now });
+      return { id: created.id, number };
+    }
+    [villa] = await tx.select().from(villas).where(eq(villas.number, number)).limit(1);
+  }
+  if (!villa || !villa.isActive) throw new ApiError(400, 'validation_error', { villaNumber: 'errors.villa_inactive' });
   return { id: villa.id, number: villa.number };
 }
 
@@ -112,7 +133,7 @@ export async function submitVisitRequest(
   const [visitor] = await tx.select().from(visitors).where(eq(visitors.id, args.visitorId)).for('update').limit(1);
   if (!visitor) throw new ApiError(404, 'not_found');
 
-  const villa = await assertVillaActive(tx, input.villaId);
+  const villa = await resolveVilla(scope, principal, input);
   const requestedGateId = await assertGateActive(tx, input.requestedGateId);
   const entry = new Date(input.requestedEntryAt);
   validateTiming(entry, input.durationMinutes, visitor, now, settings);
@@ -314,8 +335,9 @@ export async function modifyVisit(
 
   const settings = await loadSettings(tx);
   const audience = principal.kind === 'staff' ? 'staff' : 'visitor';
+  const villaRef = input.villaNumber || input.villaId ? await resolveVilla(scope, principal, input) : null;
   const next = {
-    villaId: input.villaId ?? visit.villaId,
+    villaId: villaRef?.id ?? visit.villaId,
     reason: input.reason ?? visit.reason,
     reasonDetails: input.reasonDetails !== undefined ? input.reasonDetails : visit.reasonDetails,
     requestedEntryAt: input.requestedEntryAt ? new Date(input.requestedEntryAt) : visit.requestedEntryAt,
@@ -333,7 +355,7 @@ export async function modifyVisit(
   }
 
   const [visitor] = await tx.select().from(visitors).where(eq(visitors.id, visit.visitorId)).for('update').limit(1);
-  const villa = await assertVillaActive(tx, next.villaId);
+  const villa = villaRef ?? (await resolveVilla(scope, principal, { villaId: next.villaId }));
   validateTiming(next.requestedEntryAt, next.durationMinutes, visitor!, now, settings);
 
   if (visit.status === 'pending') {

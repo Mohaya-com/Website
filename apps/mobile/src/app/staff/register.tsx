@@ -28,7 +28,7 @@ export default function StaffRegister() {
   const editId = params.edit;
   const { data: config } = usePublicConfig();
   const tz = config?.timezone ?? 'Asia/Riyadh';
-  const newDraft = (): VisitDraft => ({ villaId: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null });
+  const newDraft = (): VisitDraft => ({ villaNumber: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null });
 
   const [step, setStep] = useState(editId ? 1 : 0);
   const [query, setQuery] = useState('');
@@ -48,7 +48,7 @@ export default function StaffRegister() {
   useEffect(() => {
     const v = existing.data;
     if (!v) return;
-    setDraft({ villaId: v.villa.id, reason: v.reason, reasonDetails: v.reasonDetails ?? '', schedule: { date: zonedDateString(new Date(v.requestedEntryAt), tz), time: zonedTimeString(new Date(v.requestedEntryAt), tz), durationMinutes: v.durationMinutes }, requestedGateId: v.requestedGate?.id ?? null });
+    setDraft({ villaNumber: v.villa.number, reason: v.reason, reasonDetails: v.reasonDetails ?? '', schedule: { date: zonedDateString(new Date(v.requestedEntryAt), tz), time: zonedTimeString(new Date(v.requestedEntryAt), tz), durationMinutes: v.durationMinutes }, requestedGateId: v.requestedGate?.id ?? null });
   }, [existing.data, tz]);
 
   const visitor = lookup.kind === 'found' ? lookup.visitor : null;
@@ -83,7 +83,7 @@ export default function StaffRegister() {
     try {
       const body = draftToBody(draft, tz, clientRequestId);
       if (editId && existing.data) {
-        const res = await api<{ visit: VisitDTO }>(`/visits/${editId}`, { method: 'PATCH', body: { expectedVersion: existing.data.version, villaId: body.villaId, reason: body.reason, reasonDetails: body.reasonDetails, requestedEntryAt: body.requestedEntryAt, durationMinutes: body.durationMinutes } });
+        const res = await api<{ visit: VisitDTO }>(`/visits/${editId}`, { method: 'PATCH', body: { expectedVersion: existing.data.version, villaNumber: body.villaNumber, reason: body.reason, reasonDetails: body.reasonDetails, requestedEntryAt: body.requestedEntryAt, durationMinutes: body.durationMinutes } });
         setSubmitted(res.visit);
       } else {
         const res = await api<{ visit: VisitDTO }>('/visits', { body: { ...body, visitorId: visitor!.id } });

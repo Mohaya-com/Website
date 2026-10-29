@@ -238,6 +238,7 @@ export const ar = {
     documentPairRequired: 'أدخل نوع الهوية ورقمها معًا',
     qrOrVisit: 'امسح الرمز أو اختر الزيارة',
     selectVilla: 'اختر رقم الفيلا',
+    villaRequired: 'اكتب رقم الفيلا',
     gateActionRequired: 'يجب أن تدعم البوابة الدخول أو الخروج',
     timing: {
       entry_in_past: 'موعد الدخول في الماضي',
@@ -382,6 +383,7 @@ export const ar = {
     privacyTitle: 'لماذا نجمع بياناتك؟',
   },
   request: {
+    villaNumberHint: 'اكتب رقم الفيلا التي تزورها، مثل 12 أو A-7',
     title: 'طلب زيارة جديدة',
     stepDetails: 'تفاصيل الزيارة',
     stepReview: 'المراجعة',

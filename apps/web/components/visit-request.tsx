@@ -11,26 +11,26 @@ import {
 } from '@vms/shared';
 import { useFormat } from '@/lib/hooks';
 import { useI18n } from '@/lib/i18n';
-import { ReasonPicker, ScheduleInput, VillaSelect, scheduleToEntry, useVillaOptions, type ScheduleValue } from './inputs';
+import { ReasonPicker, ScheduleInput, VillaNumberInput, scheduleToEntry, type ScheduleValue } from './inputs';
 import { StatusBadge } from './status';
 import { Field, Textarea } from './ui/form';
 import { Button, Card, DetailItem } from './ui/primitives';
 import { useToast } from './ui/toast';
 
 export interface VisitDraft {
-  villaId: string;
+  villaNumber: string;
   reason: VisitReason | null;
   reasonDetails: string;
   schedule: ScheduleValue;
   requestedGateId: string | null;
 }
 
-export type DraftErrors = Partial<Record<'villaId' | 'reason' | 'reasonDetails' | 'entry' | 'duration', string>>;
+export type DraftErrors = Partial<Record<'villaNumber' | 'reason' | 'reasonDetails' | 'entry' | 'duration', string>>;
 
 /** Client-side validation mirroring the server rules (the server re-validates everything). */
 export function validateDraft(draft: VisitDraft, config: PublicConfigDTO | undefined, documentExpiryDate?: string | null): DraftErrors {
   const errors: DraftErrors = {};
-  if (!draft.villaId) errors.villaId = 'validation.selectVilla';
+  if (!draft.villaNumber.trim()) errors.villaNumber = 'validation.villaRequired';
   if (!draft.reason) errors.reason = 'validation.required';
   if (draft.reason === 'other' && draft.reasonDetails.trim().length < 3) errors.reasonDetails = 'validation.reasonDetailsRequired';
   const tz = config?.timezone ?? 'Asia/Riyadh';
@@ -56,7 +56,7 @@ export function validateDraft(draft: VisitDraft, config: PublicConfigDTO | undef
 export function draftToBody(draft: VisitDraft, tz: string, clientRequestId: string) {
   const entry = scheduleToEntry(draft.schedule, tz)!;
   return {
-    villaId: draft.villaId,
+    villaNumber: draft.villaNumber.trim(),
     reason: draft.reason!,
     reasonDetails: draft.reason === 'other' || draft.reasonDetails.trim() ? draft.reasonDetails.trim() || null : null,
     requestedEntryAt: entry.toISOString(),
@@ -69,7 +69,7 @@ export function draftToBody(draft: VisitDraft, tz: string, clientRequestId: stri
 /** Maps server field errors onto the form fields. */
 export function serverErrorsToDraft(fields: Record<string, string>): DraftErrors {
   return {
-    ...(fields.villaId ? { villaId: fields.villaId } : {}),
+    ...(fields.villaNumber || fields.villaId ? { villaNumber: fields.villaNumber ?? fields.villaId } : {}),
     ...(fields.reason ? { reason: fields.reason } : {}),
     ...(fields.reasonDetails ? { reasonDetails: fields.reasonDetails } : {}),
     ...(fields.requestedEntryAt ? { entry: fields.requestedEntryAt } : {}),
@@ -81,7 +81,7 @@ export function VisitDetailsForm({ draft, onChange, errors, maxDurationMinutes }
   const { t } = useI18n();
   return (
     <div className="space-y-6">
-      <VillaSelect value={draft.villaId} onChange={(villaId) => onChange({ ...draft, villaId })} error={errors.villaId} />
+      <VillaNumberInput value={draft.villaNumber} onChange={(villaNumber) => onChange({ ...draft, villaNumber })} error={errors.villaNumber} />
       <ReasonPicker value={draft.reason} onChange={(reason) => onChange({ ...draft, reason })} error={errors.reason} />
       {draft.reason === 'other' && (
         <Field label={t('fields.reasonDetails')} required error={errors.reasonDetails}>
@@ -97,8 +97,6 @@ export function VisitDetailsForm({ draft, onChange, errors, maxDurationMinutes }
 export function VisitReview({ draft, visitorBlock, onEdit }: { draft: VisitDraft; visitorBlock?: ReactNode; onEdit: () => void }) {
   const { t } = useI18n();
   const fmt = useFormat();
-  const villas = useVillaOptions();
-  const villa = villas.data?.items.find((v) => v.id === draft.villaId);
   const entry = scheduleToEntry(draft.schedule, fmt.tz);
   return (
     <div className="space-y-4">
@@ -111,7 +109,7 @@ export function VisitReview({ draft, visitorBlock, onEdit }: { draft: VisitDraft
           </Button>
         </div>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <DetailItem label={t('fields.villa')} value={villa?.number ?? '—'} mono />
+          <DetailItem label={t('fields.villa')} value={draft.villaNumber.trim() || '—'} mono />
           <DetailItem label={t('fields.reason')} value={draft.reason ? (draft.reason === 'other' ? `${t('reasons.other')}: ${draft.reasonDetails}` : t(`reasons.${draft.reason}`)) : '—'} />
           <DetailItem label={t('fields.entryAt')} value={entry ? fmt.dateTime(entry) : '—'} />
           <DetailItem label={t('fields.duration')} value={fmt.duration(draft.schedule.durationMinutes)} />

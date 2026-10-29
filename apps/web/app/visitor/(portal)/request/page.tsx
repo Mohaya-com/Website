@@ -37,7 +37,7 @@ function RequestWizard() {
   const gateCode = search.get('gate');
   const tz = config?.timezone ?? 'Asia/Riyadh';
 
-  const initial: VisitDraft = { villaId: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null };
+  const initial: VisitDraft = { villaNumber: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null };
   const [draft, setDraft, clearDraft, restored] = useDraft<VisitDraft>(editId ? `edit:${editId}` : 'visit-request', initial);
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<DraftErrors>({});
@@ -56,7 +56,7 @@ function RequestWizard() {
     const v = editing.data;
     if (!v || restored) return;
     setDraft({
-      villaId: v.villa.id,
+      villaNumber: v.villa.number,
       reason: v.reason,
       reasonDetails: v.reasonDetails ?? '',
       schedule: { date: zonedDateString(new Date(v.requestedEntryAt), tz), time: zonedTimeString(new Date(v.requestedEntryAt), tz), durationMinutes: v.durationMinutes },
@@ -87,7 +87,7 @@ function RequestWizard() {
       if (editId && editing.data) {
         const res = await api<{ visit: VisitDTO; replaced: boolean }>(`/me/visits/${editId}`, {
           method: 'PATCH',
-          body: { expectedVersion: editing.data.version, villaId: body.villaId, reason: body.reason, reasonDetails: body.reasonDetails, requestedEntryAt: body.requestedEntryAt, durationMinutes: body.durationMinutes },
+          body: { expectedVersion: editing.data.version, villaNumber: body.villaNumber, reason: body.reason, reasonDetails: body.reasonDetails, requestedEntryAt: body.requestedEntryAt, durationMinutes: body.durationMinutes },
         });
         toast(t('request.modified'));
         clearDraft();

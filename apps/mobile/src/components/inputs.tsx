@@ -254,6 +254,16 @@ export function ExpiryInput({ value, onChange, error }: { value: ExpiryValue; on
 
 // ───────────────────────────── Visit details ─────────────────────────────
 
+/** Free-text villa number (Arabic digits accepted); a new number is added to the villa list by the server. */
+export function VillaNumberInput({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
+  const { t } = useI18n();
+  return (
+    <Field label={t('fields.villa')} required error={error} hint={t('request.villaNumberHint')}>
+      <Input ltrInput value={value} onChangeText={(v) => onChange(normalizeDigits(v).slice(0, 20))} autoCapitalize="characters" autoCorrect={false} maxLength={20} invalid={Boolean(error)} accessibilityLabel={t('fields.villa')} />
+    </Field>
+  );
+}
+
 export function VillaPicker({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);

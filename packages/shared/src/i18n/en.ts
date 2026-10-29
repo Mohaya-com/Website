@@ -238,6 +238,7 @@ export const en: Messages = {
     villaNumber: 'Invalid villa number',
     documentPairRequired: 'Enter the document type and number together',
     qrOrVisit: 'Scan the code or choose the visit',
+    villaRequired: 'Enter the villa number',
     selectVilla: 'Choose the villa number',
     gateActionRequired: 'A gate must support entry or exit',
     timing: {
@@ -383,6 +384,7 @@ export const en: Messages = {
     privacyTitle: 'Why do we collect your information?',
   },
   request: {
+    villaNumberHint: 'Type the number of the villa you are visiting, e.g. 12 or A-7',
     title: 'New visit request',
     stepDetails: 'Visit details',
     stepReview: 'Review',

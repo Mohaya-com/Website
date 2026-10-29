@@ -121,7 +121,7 @@ function RegisterFlow() {
   const [lookup, setLookup] = useState<LookupState>({ kind: 'none' });
   const [confirmed, setConfirmed] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [draft, setDraft] = useState<VisitDraft>({ villaId: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null });
+  const [draft, setDraft] = useState<VisitDraft>({ villaNumber: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null });
   const [errors, setErrors] = useState<DraftErrors>({});
   const [clientRequestId, setClientRequestId] = useState('');
   const [busy, setBusy] = useState(false);
@@ -133,7 +133,7 @@ function RegisterFlow() {
     const v = editing.data;
     if (!v) return;
     setDraft({
-      villaId: v.villa.id,
+      villaNumber: v.villa.number,
       reason: v.reason,
       reasonDetails: v.reasonDetails ?? '',
       schedule: { date: zonedDateString(new Date(v.requestedEntryAt), tz), time: zonedTimeString(new Date(v.requestedEntryAt), tz), durationMinutes: v.durationMinutes },
@@ -180,7 +180,7 @@ function RegisterFlow() {
       if (editId && editing.data) {
         const res = await api<{ visit: VisitDTO; replaced: boolean }>(`/visits/${editId}`, {
           method: 'PATCH',
-          body: { expectedVersion: editing.data.version, villaId: body.villaId, reason: body.reason, reasonDetails: body.reasonDetails, requestedEntryAt: body.requestedEntryAt, durationMinutes: body.durationMinutes },
+          body: { expectedVersion: editing.data.version, villaNumber: body.villaNumber, reason: body.reason, reasonDetails: body.reasonDetails, requestedEntryAt: body.requestedEntryAt, durationMinutes: body.durationMinutes },
         });
         toast(t('request.modified'));
         setSubmitted(res.visit);
@@ -211,7 +211,7 @@ function RegisterFlow() {
     setLookup({ kind: 'none' });
     setConfirmed(false);
     setSubmitted(null);
-    setDraft({ villaId: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null });
+    setDraft({ villaNumber: '', reason: null, reasonDetails: '', schedule: defaultSchedule(tz, config?.defaultVisitDurationMinutes ?? 120), requestedGateId: null });
     setErrors({});
   };
 
