@@ -37,3 +37,6 @@ GoogleService-Info.plist
 .vscode/
 .idea/
 .screenshots/
+
+# deployment
+deploy/backups/

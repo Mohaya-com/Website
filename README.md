@@ -369,6 +369,18 @@ Optional browser checks (`e2e/`, require Playwright with Chromium and seeded dat
 - `node e2e/responsive-check.cjs`: no horizontal overflow at 375 px, Arabic and English.
 - `node e2e/mobile-web-smoke.cjs`: the Expo app rendered with react-native-web at phone size.
 
+## Deployment (Docker, single server)
+
+`deploy/` contains a ready stack: PostgreSQL 16, the web app/API image (`apps/web/Dockerfile`), Caddy with automatic HTTPS, and daily `pg_dump` backups. Migrations run on start.
+
+```bash
+cd deploy && cp .env.example .env   # set DOMAIN, ACME_EMAIL, POSTGRES_PASSWORD and the secrets
+docker compose up -d --build
+docker compose exec web docker-entrypoint.sh create-admin --username admin --name "Admin"
+```
+
+The full step-by-step guide in Arabic is [deploy/README.ar.md](deploy/README.ar.md).
+
 ## Production checklist
 
 - [ ] PostgreSQL 16 with backups and point-in-time recovery; `pnpm db:migrate` in the deploy pipeline.
