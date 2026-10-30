@@ -1,6 +1,6 @@
 'use client';
 
-import { FlaskConical, HelpCircle, MessageSquareLock, Pencil, Send, ShieldCheck, Smartphone } from 'lucide-react';
+import { FlaskConical, HelpCircle, IdCard, MessageSquareLock, Pencil, QrCode, Send, ShieldCheck, Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -10,7 +10,7 @@ import { DocumentNumberInput, PhoneInput, type PhoneValue } from '@/components/i
 import { PublicShell } from '@/components/shell/public-shell';
 import { Banner } from '@/components/ui/feedback';
 import { Field, Input, Segmented } from '@/components/ui/form';
-import { Button, Card } from '@/components/ui/primitives';
+import { Button, ButtonLink, Card } from '@/components/ui/primitives';
 import { api, isApiError } from '@/lib/api';
 import { usePublicConfig } from '@/lib/hooks';
 import { useI18n } from '@/lib/i18n';
@@ -95,6 +95,32 @@ export function VisitorVerify({ next }: { next: string }) {
   }
 
   const smsUnavailable = config && !config.sms.available;
+
+  // Without a verification-code provider, visitors register at arrival and an administrator verifies them.
+  if (smsUnavailable && config.allowArrivalRegistration) {
+    return (
+      <PublicShell>
+        <Card className="space-y-5 p-6 sm:p-8 animate-slide-up">
+          <div className="flex items-center gap-3">
+            <span className="grid size-12 place-items-center rounded-2xl bg-teal-600 text-white">
+              <IdCard className="size-6" aria-hidden />
+            </span>
+            <div>
+              <h1 className="text-xl font-extrabold text-navy-900">{t('arrival.title')}</h1>
+              <p className="text-sm text-muted">{t('arrival.startHint')}</p>
+            </div>
+          </div>
+          <p className="text-muted">{t('arrival.subtitle')}</p>
+          <ButtonLink href="/arrive" size="lg" variant="accent" block icon={<IdCard className="size-5" aria-hidden />}>
+            {t('arrival.startCta')}
+          </ButtonLink>
+          <ButtonLink href="/arrive/status" size="lg" variant="secondary" block icon={<QrCode className="size-5" aria-hidden />}>
+            {t('gateLanding.viewMyPass')}
+          </ButtonLink>
+        </Card>
+      </PublicShell>
+    );
+  }
 
   return (
     <PublicShell>

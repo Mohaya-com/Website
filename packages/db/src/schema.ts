@@ -14,6 +14,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  customType,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
@@ -29,6 +30,7 @@ import {
  */
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 export const staffRoleEnum = pgEnum('staff_role', ['admin', 'security']);
 export const documentTypeEnum = pgEnum('document_type', ['national_id', 'iqama']);
@@ -155,6 +157,9 @@ export const villas = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     number: text('number').notNull(),
     label: text('label'),
+    /** Contact for visit confirmations (E.164). */
+    ownerName: text('owner_name'),
+    ownerMobile: text('owner_mobile'),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
@@ -441,6 +446,112 @@ export const sessions = pgTable(
   ],
 );
 
+// ───────────────────────────── Arrival registrations (no OTP) ─────────────────────────────
+
+export const arrivalStatusEnum = pgEnum('arrival_status', ['pending', 'approved', 'rejected']);
+
+/**
+ * A visitor's self-registration at arrival, made without a verification code. Nothing it contains is
+ * trusted until an administrator compares it with the uploaded ID image and approves it; approval
+ * creates or updates the visitor profile and an approved visit. The submitter only ever sees the
+ * status of this request (through a random status token stored as a hash), never a profile.
+ */
+export const arrivalRegistrations = pgTable(
+  'arrival_registrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reference: text('reference').notNull(),
+    status: arrivalStatusEnum('status').notNull().default('pending'),
+    statusTokenHash: text('status_token_hash').notNull(),
+    documentType: documentTypeEnum('document_type').notNull(),
+    documentNumber: text('document_number').notNull(),
+    /** Optional for the visitor; the administrator completes name, nationality and expiry from the ID photo. */
+    fullName: text('full_name'),
+    nationality: text('nationality'),
+    documentExpiryDate: date('document_expiry_date', { mode: 'string' }),
+    documentExpiryCalendar: calendarKindEnum('document_expiry_calendar'),
+    documentExpiryOriginal: text('document_expiry_original'),
+    mobile: text('mobile').notNull(),
+    villaNumber: text('villa_number').notNull(),
+    reason: visitReasonEnum('reason').notNull(),
+    reasonDetails: text('reason_details'),
+    requestedEntryAt: ts('requested_entry_at').notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    requestedGateId: uuid('requested_gate_id').references(() => gates.id),
+    locale: localeEnum('locale').notNull().default('ar'),
+    /** Photo of the ID / Iqama (JPEG, PNG or WebP). Removed by the maintenance sweep after the retention period. */
+    idImage: bytea('id_image'),
+    idImageType: text('id_image_type'),
+    idImageRemovedAt: ts('id_image_removed_at'),
+    ipHash: text('ip_hash'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+    decidedAt: ts('decided_at'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    rejectReason: text('reject_reason'),
+    visitorId: uuid('visitor_id').references(() => visitors.id),
+    visitId: uuid('visit_id').references(() => visits.id),
+  },
+  (t) => [
+    uniqueIndex('arrival_registrations_reference_unique').on(t.reference),
+    uniqueIndex('arrival_registrations_status_token_unique').on(t.statusTokenHash),
+    index('arrival_registrations_status_idx').on(t.status, t.createdAt),
+    index('arrival_registrations_document_idx').on(t.documentNumber),
+    check('arrival_registrations_document_number_format', sql`${t.documentNumber} ~ '^[0-9]{10}$'`),
+    check('arrival_registrations_mobile_e164', sql`${t.mobile} ~ '^\\+[1-9][0-9]{6,14}$'`),
+    check(
+      'arrival_registrations_decision',
+      sql`(${t.status} = 'pending' AND ${t.decidedAt} IS NULL) OR (${t.status} <> 'pending' AND ${t.decidedAt} IS NOT NULL)`,
+    ),
+    check('arrival_registrations_approved_links', sql`${t.status} <> 'approved' OR (${t.visitorId} IS NOT NULL AND ${t.visitId} IS NOT NULL)`),
+  ],
+);
+
+// ───────────────────────────── Gate quick entries ─────────────────────────────
+
+export const quickEntryStatusEnum = pgEnum('quick_entry_status', ['inside', 'exited']);
+export const ownerResponseEnum = pgEnum('owner_response', ['confirmed', 'declined']);
+
+/**
+ * A visitor recorded at the gate by security: a photo of the ID / Iqama / passport and the villa.
+ * Entry time is set automatically; exit is recorded with one tap. Identity details read from the
+ * photo are optional. The villa owner can confirm or decline through a private link.
+ */
+export const quickEntries = pgTable(
+  'quick_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    status: quickEntryStatusEnum('status').notNull().default('inside'),
+    villaId: uuid('villa_id')
+      .notNull()
+      .references(() => villas.id),
+    gateId: uuid('gate_id').references(() => gates.id),
+    documentKind: text('document_kind'),
+    documentNumber: text('document_number'),
+    fullName: text('full_name'),
+    nationality: text('nationality'),
+    idImage: bytea('id_image'),
+    idImageType: text('id_image_type'),
+    idImageRemovedAt: ts('id_image_removed_at'),
+    enteredAt: ts('entered_at').notNull(),
+    enteredByUserId: uuid('entered_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    exitedAt: ts('exited_at'),
+    exitedByUserId: uuid('exited_by_user_id').references(() => users.id),
+    ownerTokenHash: text('owner_token_hash').notNull(),
+    ownerResponse: ownerResponseEnum('owner_response'),
+    ownerRespondedAt: ts('owner_responded_at'),
+  },
+  (t) => [
+    index('quick_entries_inside_idx').on(t.status, t.enteredAt),
+    index('quick_entries_villa_idx').on(t.villaId, t.enteredAt),
+    index('quick_entries_document_idx').on(t.documentNumber),
+    uniqueIndex('quick_entries_owner_token_unique').on(t.ownerTokenHash),
+    check('quick_entries_document_kind', sql`${t.documentKind} IS NULL OR ${t.documentKind} IN ('national_id', 'iqama', 'passport')`),
+    check('quick_entries_exit', sql`(${t.status} = 'inside' AND ${t.exitedAt} IS NULL) OR (${t.status} = 'exited' AND ${t.exitedAt} IS NOT NULL)`),
+  ],
+);
+
 // ───────────────────────────── Audit, settings, rate limits ─────────────────────────────
 
 /** Append-only. UPDATE and DELETE are blocked by a trigger (see migration 0001). */
@@ -496,3 +607,5 @@ export type Notification = typeof notifications.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type OtpChallenge = typeof otpChallenges.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type ArrivalRegistration = typeof arrivalRegistrations.$inferSelect;
+export type QuickEntry = typeof quickEntries.$inferSelect;

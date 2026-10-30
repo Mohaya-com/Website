@@ -35,6 +35,7 @@ export const publicRoutes: RouteDef[] = [
         maxAdvanceBookingDays: s.maxAdvanceBookingDays,
         identityChecksumValidation: s.identityChecksumValidation,
         allowVisitorSelfRegistration: s.allowVisitorSelfRegistration,
+        allowArrivalRegistration: s.allowArrivalRegistration,
         sms: { provider: sms.name, available: sms.available, developmentMode: sms.isDevelopment },
         push: { enabled: rc.ctx.push.enabled },
         demoData: await isDemoData(rc.ctx.db),

@@ -163,6 +163,9 @@ export interface VillaDTO {
   number: string;
   label: string | null;
   isActive: boolean;
+  /** Administrators only (never in the public villa options). */
+  ownerName?: string | null;
+  ownerMobile?: string | null;
 }
 
 export interface ActorRefDTO {
@@ -358,6 +361,138 @@ export interface WhatsAppTestResultDTO {
   messageId: string | null;
 }
 
+export type ArrivalStatus = 'pending' | 'approved' | 'rejected';
+
+/** Returned once on submission. The status token is the visitor's only way to follow the request. */
+export interface ArrivalSubmitResultDTO {
+  reference: string;
+  statusToken: string;
+}
+
+/** What the visitor sees about their arrival request (no profile data). */
+export interface ArrivalStatusDTO {
+  reference: string;
+  status: ArrivalStatus;
+  createdAt: string;
+  villaNumber: string;
+  rejectReason: string | null;
+  /** The approved visit's status, once approved. */
+  visitStatus: VisitStatus | null;
+  /** The pass, while the approved visit can still be used for entry. */
+  pass: PassDTO | null;
+}
+
+export interface ArrivalScanResultDTO {
+  /** Text was found in the image (fields may still be empty when nothing could be matched). */
+  recognized: boolean;
+  fields: {
+    documentKind?: DocumentType | 'passport';
+    documentType?: DocumentType;
+    documentNumber?: string;
+    fullName?: string;
+    nationality?: string;
+    expiry?: { calendar: CalendarKind; date: string };
+  };
+}
+
+export interface ArrivalListItemDTO {
+  id: string;
+  reference: string;
+  status: ArrivalStatus;
+  /** Optional for the visitor. */
+  fullName: string | null;
+  documentType: DocumentType;
+  documentNumberMasked: string;
+  villaNumber: string;
+  requestedEntryAt: string;
+  createdAt: string;
+  hasImage: boolean;
+  /** A profile with this identity number already exists. */
+  returningVisitor: boolean;
+}
+
+export interface ArrivalDetailDTO {
+  id: string;
+  reference: string;
+  status: ArrivalStatus;
+  documentType: DocumentType;
+  documentNumber: string;
+  /** Name, nationality and expiry may be missing: the administrator completes them from the ID photo. */
+  fullName: string | null;
+  nationality: string | null;
+  documentExpiry: { date: string; calendar: CalendarKind; original: string } | null;
+  mobile: string;
+  villaNumber: string;
+  reason: VisitReason;
+  reasonDetails: string | null;
+  requestedEntryAt: string;
+  durationMinutes: number;
+  requestedGate: GateRefDTO | null;
+  createdAt: string;
+  hasImage: boolean;
+  imageRemoved: boolean;
+  /** The existing profile with the same identity number, for comparison. */
+  existingVisitor: {
+    id: string;
+    fullName: string;
+    nationality: string;
+    mobile: string;
+    documentExpiryDate: string;
+    hasOpenVisit: boolean;
+  } | null;
+  decidedAt: string | null;
+  decidedBy: ActorRefDTO | null;
+  rejectReason: string | null;
+  visitorId: string | null;
+  visitId: string | null;
+}
+
+export type OwnerResponse = 'confirmed' | 'declined';
+
+/** A visitor recorded at the gate by security (photo + villa), entered automatically at the time of recording. */
+export interface QuickEntryDTO {
+  id: string;
+  status: 'inside' | 'exited';
+  villaNumber: string;
+  villaHasOwnerContact: boolean;
+  gate: GateRefDTO | null;
+  documentKind: DocumentType | 'passport' | null;
+  documentNumber: string | null;
+  fullName: string | null;
+  nationality: string | null;
+  hasImage: boolean;
+  enteredAt: string;
+  enteredBy: string | null;
+  exitedAt: string | null;
+  exitedBy: string | null;
+  ownerResponse: OwnerResponse | null;
+  ownerRespondedAt: string | null;
+}
+
+/** Returned when an entry is recorded: how to ask the villa owner to confirm. */
+export interface QuickEntryCreatedDTO {
+  entry: QuickEntryDTO;
+  ownerLink: string;
+  /** wa.me link with a ready message, when the villa has an owner mobile number. */
+  ownerWhatsappUrl: string | null;
+}
+
+/** Everyone currently inside: gate quick entries and visits checked in with a pass. */
+export interface InsideNowDTO {
+  entries: QuickEntryDTO[];
+  visits: { id: string; reference: string; fullName: string; villaNumber: string; checkedInAt: string }[];
+}
+
+/** What the villa owner sees through the confirmation link. */
+export interface OwnerConfirmationDTO {
+  compoundName: string;
+  villaNumber: string;
+  fullName: string | null;
+  enteredAt: string;
+  status: 'inside' | 'exited';
+  response: OwnerResponse | null;
+}
+
 export interface PublicConfigDTO {
   compoundNameAr: string;
   compoundNameEn: string;
@@ -369,6 +504,7 @@ export interface PublicConfigDTO {
   maxAdvanceBookingDays: number;
   identityChecksumValidation: boolean;
   allowVisitorSelfRegistration: boolean;
+  allowArrivalRegistration: boolean;
   sms: { provider: SmsProviderKind; available: boolean; developmentMode: boolean };
   push: { enabled: boolean };
   demoData: boolean;

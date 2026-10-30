@@ -1,6 +1,6 @@
 'use client';
 
-import { CalendarPlus, DoorOpen, Info, LogOut, QrCode, ScanLine } from 'lucide-react';
+import { CalendarPlus, DoorOpen, IdCard, Info, LogOut, QrCode, ScanLine } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, use, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -9,7 +9,7 @@ import { PublicShell } from '@/components/shell/public-shell';
 import { Banner, ErrorState } from '@/components/ui/feedback';
 import { ButtonLink, Card, Spinner } from '@/components/ui/primitives';
 import { api } from '@/lib/api';
-import { useSession } from '@/lib/hooks';
+import { usePublicConfig, useSession } from '@/lib/hooks';
 import { useI18n } from '@/lib/i18n';
 
 /**
@@ -22,6 +22,7 @@ function GateLanding({ code }: { code: string }) {
   const search = useSearchParams();
   const action = search.get('a') === 'exit' ? 'exit' : 'entry';
   const { data: session, isLoading: sessionLoading } = useSession();
+  const { data: config } = usePublicConfig();
   const gate = useQuery({ queryKey: ['public-gate', code], queryFn: () => api<PublicGateDTO>(`/public/gates/${encodeURIComponent(code)}`), retry: false });
 
   useEffect(() => {
@@ -60,8 +61,27 @@ function GateLanding({ code }: { code: string }) {
             {t('gateLanding.staffContinue')}
           </ButtonLink>
         ) : action === 'entry' ? (
-          <ButtonLink href={isVisitor ? requestHref : `/visitor?next=${encodeURIComponent(requestHref)}`} size="lg" variant="accent" block icon={<CalendarPlus className="size-5" aria-hidden />}>
-            {t('gateLanding.visitorContinue')}
+          <>
+            {!isVisitor && config?.allowArrivalRegistration && (
+              <ButtonLink href={`/arrive?gate=${encodeURIComponent(gate.data.code)}`} size="lg" variant="accent" block icon={<IdCard className="size-5" aria-hidden />}>
+                {t('arrival.startCta')}
+              </ButtonLink>
+            )}
+            {(isVisitor || config?.sms.available || !config?.allowArrivalRegistration) && (
+              <ButtonLink
+                href={isVisitor ? requestHref : `/visitor?next=${encodeURIComponent(requestHref)}`}
+                size="lg"
+                variant={!isVisitor && config?.allowArrivalRegistration ? 'secondary' : 'accent'}
+                block
+                icon={<CalendarPlus className="size-5" aria-hidden />}
+              >
+                {t('gateLanding.visitorContinue')}
+              </ButtonLink>
+            )}
+          </>
+        ) : !isVisitor && config?.allowArrivalRegistration && !config.sms.available ? (
+          <ButtonLink href="/arrive/status" size="lg" variant="accent" block icon={<QrCode className="size-5" aria-hidden />}>
+            {t('gateLanding.viewMyPass')}
           </ButtonLink>
         ) : (
           <ButtonLink href={isVisitor ? '/visitor/home' : `/visitor?next=${encodeURIComponent('/visitor/home')}`} size="lg" variant="accent" block icon={<QrCode className="size-5" aria-hidden />}>

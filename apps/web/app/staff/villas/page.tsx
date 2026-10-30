@@ -17,11 +17,17 @@ function VillaDialog({ villa, onClose }: { villa: VillaDTO | null; onClose: () =
   const { t } = useI18n();
   const qc = useQueryClient();
   const toast = useToast();
-  const [form, setForm] = useState({ number: villa?.number ?? '', label: villa?.label ?? '', isActive: villa?.isActive ?? true });
+  const [form, setForm] = useState({
+    number: villa?.number ?? '',
+    label: villa?.label ?? '',
+    ownerName: villa?.ownerName ?? '',
+    ownerMobile: villa?.ownerMobile?.startsWith('+966') ? `0${villa.ownerMobile.slice(4)}` : (villa?.ownerMobile ?? ''),
+    isActive: villa?.isActive ?? true,
+  });
   const [fields, setFields] = useState<Record<string, string>>({});
   const save = useMutation({
     mutationFn: () => {
-      const body = { number: form.number, label: form.label.trim() || null, isActive: form.isActive };
+      const body = { number: form.number, label: form.label.trim() || null, ownerName: form.ownerName.trim() || null, ownerMobile: form.ownerMobile.trim() || null, isActive: form.isActive };
       return villa ? api<VillaDTO>(`/villas/${villa.id}`, { method: 'PATCH', body }) : api<VillaDTO>('/villas', { body });
     },
     onSuccess: () => {
@@ -45,7 +51,7 @@ function VillaDialog({ villa, onClose }: { villa: VillaDTO | null; onClose: () =
           <Button
             loading={save.isPending}
             onClick={() => {
-              const parsed = villaSchema.safeParse({ ...form, label: form.label || null });
+              const parsed = villaSchema.safeParse({ ...form, label: form.label || null, ownerName: form.ownerName || null, ownerMobile: form.ownerMobile || null });
               if (!parsed.success) return setFields(fieldErrorsFromIssues(parsed.error.issues));
               setFields({});
               save.mutate();
@@ -63,6 +69,12 @@ function VillaDialog({ villa, onClose }: { villa: VillaDTO | null; onClose: () =
         </Field>
         <Field label={t('fields.villaLabel')} error={fields.label}>
           {(a) => <Input {...a} value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />}
+        </Field>
+        <Field label={t('fields.ownerName')} error={fields.ownerName}>
+          {(a) => <Input {...a} value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} />}
+        </Field>
+        <Field label={t('fields.ownerMobile')} error={fields.ownerMobile} hint={t('fields.ownerMobileHint')}>
+          {(a) => <Input {...a} type="tel" dir="ltr" inputMode="tel" placeholder="05X XXX XXXX" className="ltr-nums" value={form.ownerMobile} onChange={(e) => setForm({ ...form, ownerMobile: e.target.value })} />}
         </Field>
         <Switch checked={form.isActive} onChange={(v) => setForm({ ...form, isActive: v })} label={t('common.active')} />
       </div>
@@ -115,6 +127,7 @@ export default function VillasPage() {
               columns={[
                 { key: 'number', header: t('fields.villaNumber'), cell: (v) => <span className="font-bold ltr-nums">{v.number}</span> },
                 { key: 'label', header: t('fields.villaLabel'), cell: (v) => v.label ?? '—' },
+                { key: 'owner', header: t('fields.ownerName'), hideOnMobile: true, cell: (v) => (v.ownerName || v.ownerMobile ? <span>{v.ownerName ?? ''} <span className="text-xs text-muted ltr-nums" dir="ltr">{v.ownerMobile ?? ''}</span></span> : '—') },
                 { key: 'status', header: t('fields.status'), cell: (v) => <Badge tone={v.isActive ? 'green' : 'neutral'}>{v.isActive ? t('common.active') : t('common.inactive')}</Badge> },
                 {
                   key: 'edit',

@@ -46,6 +46,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         } else if (event.t === 'notification') {
           void qc.invalidateQueries({ queryKey: ['notifications'] });
           void qc.invalidateQueries({ queryKey: ['unread'] });
+        } else if (event.t === 'gate') {
+          void qc.invalidateQueries({ queryKey: ['gate'] });
+        } else if (event.t === 'arrival') {
+          void qc.invalidateQueries({ queryKey: ['arrivals'] });
         } else if (event.t === 'config') {
           void qc.invalidateQueries({ queryKey: ['config'] });
         }

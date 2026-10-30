@@ -100,11 +100,11 @@ export function PhoneInput({ value, onChange, error, hint }: { value: PhoneValue
 
 // ───────────────────────────── Nationality ─────────────────────────────
 
-export function NationalitySelect({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
+export function NationalitySelect({ value, onChange, error, optional }: { value: string; onChange: (v: string) => void; error?: string | null; optional?: boolean }) {
   const { t, locale } = useI18n();
   const countries = useMemo(() => sortedCountries(locale), [locale]);
   return (
-    <Field label={t('fields.nationality')} required error={error}>
+    <Field label={t('fields.nationality')} required={!optional} optional={optional} error={error}>
       {(a) => (
         <Select {...a} value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">{t('common.select')}</option>
@@ -208,7 +208,7 @@ export function useVillaOptions() {
 }
 
 /** Free-text villa number (Arabic digits accepted); suggests numbers already on file. */
-export function VillaNumberInput({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
+export function VillaNumberInput({ value, onChange, error, large }: { value: string; onChange: (v: string) => void; error?: string | null; large?: boolean }) {
   const { t } = useI18n();
   const { data } = useVillaOptions();
   const listId = useId();
@@ -216,7 +216,7 @@ export function VillaNumberInput({ value, onChange, error }: { value: string; on
     <Field label={t('fields.villa')} required error={error} hint={t('request.villaNumberHint')}>
       {(a) => (
         <>
-          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} list={listId} className="ltr-nums text-lg font-semibold" value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
+          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} list={listId} className={cn('ltr-nums font-semibold', large ? 'h-16 text-3xl tracking-wider' : 'text-lg')} value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
           <datalist id={listId}>{data?.items.map((v) => <option key={v.id} value={v.number} />)}</datalist>
         </>
       )}
@@ -299,6 +299,52 @@ export function scheduleToEntry(v: ScheduleValue, tz: string): Date | null {
   return zonedDateTimeToUtc(v.date, v.time, tz);
 }
 
+/** Visit duration: common presets plus a custom number of minutes. */
+export function DurationPicker({ value, onChange, maxDurationMinutes, error }: { value: number; onChange: (minutes: number) => void; maxDurationMinutes: number; error?: string | null }) {
+  const { t } = useI18n();
+  const fmt = useFormat();
+  const presets = DURATION_PRESETS_MINUTES.filter((m) => m <= maxDurationMinutes);
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-semibold text-ink">
+        {t('fields.duration')} <span className="text-red-700" aria-hidden>*</span>
+      </legend>
+      <div className="flex flex-wrap gap-2">
+        {presets.map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-pressed={value === m}
+            onClick={() => onChange(m)}
+            className={cn('h-11 rounded-xl border px-4 text-[15px] font-semibold transition-colors', value === m ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-line-strong bg-white hover:bg-navy-50')}
+          >
+            {fmt.duration(m)}
+          </button>
+        ))}
+        <label className={cn('flex h-11 items-center gap-2 rounded-xl border px-3', !presets.includes(value as (typeof presets)[number]) ? 'border-teal-500 bg-teal-50' : 'border-line-strong bg-white')}>
+          <span className="text-sm font-semibold">{t('request.durationCustom')}</span>
+          <input
+            type="number"
+            min={MIN_VISIT_DURATION_MINUTES}
+            max={maxDurationMinutes}
+            step={15}
+            dir="ltr"
+            className="w-20 bg-transparent text-[15px] font-semibold focus:outline-none"
+            value={value}
+            onChange={(e) => onChange(Number(normalizeDigits(e.target.value)) || 0)}
+            aria-label={t('request.durationCustomHint', { max: maxDurationMinutes })}
+          />
+        </label>
+      </div>
+      {error && (
+        <p role="alert" className="mt-1.5 text-sm font-medium text-red-700">
+          {t.dynamic(error)}
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 export function ScheduleInput({ value, onChange, maxDurationMinutes, errors }: { value: ScheduleValue; onChange: (v: ScheduleValue) => void; maxDurationMinutes: number; errors?: { entry?: string | null; duration?: string | null } }) {
   const { t } = useI18n();
   const fmt = useFormat();
@@ -343,43 +389,7 @@ export function ScheduleInput({ value, onChange, maxDurationMinutes, errors }: {
         {(a) => <Input {...a} type="time" step={300} dir="ltr" className="max-w-48 text-lg font-semibold" value={value.time} onChange={(e) => onChange({ ...value, time: e.target.value })} />}
       </Field>
 
-      <fieldset>
-        <legend className="mb-1.5 text-sm font-semibold text-ink">
-          {t('fields.duration')} <span className="text-red-700" aria-hidden>*</span>
-        </legend>
-        <div className="flex flex-wrap gap-2">
-          {presets.map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={value.durationMinutes === m}
-              onClick={() => onChange({ ...value, durationMinutes: m })}
-              className={cn('h-11 rounded-xl border px-4 text-[15px] font-semibold transition-colors', value.durationMinutes === m ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-line-strong bg-white hover:bg-navy-50')}
-            >
-              {fmt.duration(m)}
-            </button>
-          ))}
-          <label className={cn('flex h-11 items-center gap-2 rounded-xl border px-3', !presets.includes(value.durationMinutes as (typeof presets)[number]) ? 'border-teal-500 bg-teal-50' : 'border-line-strong bg-white')}>
-            <span className="text-sm font-semibold">{t('request.durationCustom')}</span>
-            <input
-              type="number"
-              min={MIN_VISIT_DURATION_MINUTES}
-              max={maxDurationMinutes}
-              step={15}
-              dir="ltr"
-              className="w-20 bg-transparent text-[15px] font-semibold focus:outline-none"
-              value={value.durationMinutes}
-              onChange={(e) => onChange({ ...value, durationMinutes: Number(normalizeDigits(e.target.value)) || 0 })}
-              aria-label={t('request.durationCustomHint', { max: maxDurationMinutes })}
-            />
-          </label>
-        </div>
-        {errors?.duration && (
-          <p role="alert" className="mt-1.5 text-sm font-medium text-red-700">
-            {t.dynamic(errors.duration)}
-          </p>
-        )}
-      </fieldset>
+      <DurationPicker value={value.durationMinutes} onChange={(durationMinutes) => onChange({ ...value, durationMinutes })} maxDurationMinutes={maxDurationMinutes} error={errors?.duration} />
 
       <div className="flex items-center justify-between gap-3 rounded-xl bg-navy-50 px-4 py-3">
         <div>

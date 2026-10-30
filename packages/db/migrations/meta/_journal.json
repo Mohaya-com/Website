@@ -15,6 +15,27 @@
       "when": 1793293531420,
       "tag": "0001_constraints",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793314992638,
+      "tag": "0002_arrival_registrations",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793338465634,
+      "tag": "0003_arrival_optional_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793402530698,
+      "tag": "0004_quick_entries",
+      "breakpoints": true
     }
   ]
 }

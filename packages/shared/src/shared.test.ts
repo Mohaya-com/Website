@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canTransition,
+  parseIdText,
   computeEntryWindow,
   computeExpectedExit,
   createTranslator,
@@ -168,5 +169,51 @@ describe('translations', () => {
     expect(t('visitor.homeGreeting', { name: 'سارة' })).toBe('أهلًا، سارة');
     expect(t.dynamic('audit.actions.visit.approved')).toBe('الموافقة على طلب');
     expect(createTranslator('en')('status.checked_in')).toBe('Inside the compound');
+  });
+});
+
+describe('reading ID photo text', () => {
+  const today = '2026-10-30';
+
+  it('reads an Iqama: number (check digit verified), name, nationality and the future expiry date', () => {
+    const text = 'KINGDOM OF SAUDI ARABIA\nRESIDENT IDENTITY\nID No: 2345678904\nName: MOHAMMED ASIF KHAN\nNationality: PAKISTAN\nDate of Birth: 1990/05/14\nExpiry Date: 2027/03/18';
+    expect(parseIdText(text, today)).toEqual({
+      documentNumber: '2345678904',
+      documentType: 'iqama',
+      documentKind: 'iqama',
+      fullName: 'Mohammed Asif Khan',
+      nationality: 'PK',
+      expiry: { calendar: 'gregorian', date: '2027-03-18' },
+    });
+  });
+
+  it('reads a national ID with Arabic-Indic digits, spaces inside the number and a Hijri expiry', () => {
+    const number = withLuhnCheckDigit('104734313');
+    const spaced = `${number.slice(0, 1)} ${number.slice(1, 4)} ${number.slice(4)}`.replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]!);
+    const result = parseIdText(`المملكة العربية السعودية\nرقم الهوية ${spaced}\nتاريخ الانتهاء ١٤٥٢/٠٣/١٠\nتاريخ الميلاد ١٤١٠/٠١/٠١`, today);
+    expect(result.documentNumber).toBe(number);
+    expect(result.documentType).toBe('national_id');
+    expect(result.nationality).toBe('SA');
+    expect(result.expiry).toEqual({ calendar: 'hijri', date: '1452-03-10' });
+  });
+
+  it('takes a name only next to a label, never from stray words read off a real card', () => {
+    expect(parseIdText('PS ERI IE\nAL MA LS\n12 3', today).fullName).toBeUndefined();
+    expect(parseIdText('الاسم: أحمد جمال سالم', today).fullName).toBe('أحمد جمال سالم');
+    expect(parseIdText('Name: SAMPLE TEST PERSON', today).fullName).toBe('Sample Test Person');
+  });
+
+  it('reads a passport from its machine-readable zone (ICAO 9303 specimen)', () => {
+    const mrz = 'P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\nL898902C36UTO7408122F1204159ZE184226B<<<<<10';
+    expect(parseIdText(mrz, today)).toEqual({ documentKind: 'passport', documentNumber: 'L898902C3', fullName: 'Anna Maria Eriksson', expiry: { calendar: 'gregorian', date: '2012-04-15' } });
+    const egyptian = 'P<EGYHASSAN<<AHMED<<<<<<<<<<<<<<<<<<<<<<<<<<\nA123456784EGY9001014M3012315<<<<<<<<<<<<<<04';
+    expect(parseIdText(egyptian, today)).toMatchObject({ documentKind: 'passport', documentNumber: 'A12345678', nationality: 'EG', fullName: 'Ahmed Hassan' });
+    // A wrong check digit means a misread line: nothing is taken from it.
+    expect(parseIdText('P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\nL898902C37UTO7408122F1204159ZE184226B<<<<<10', today).documentKind).toBeUndefined();
+  });
+
+  it('ignores numbers that fail the check digit and returns nothing it cannot match', () => {
+    expect(parseIdText('ID 2345678900 random text', today).documentNumber).toBeUndefined();
+    expect(parseIdText('', today)).toEqual({});
   });
 });

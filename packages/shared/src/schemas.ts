@@ -14,7 +14,7 @@ import {
 } from './constants';
 import { COUNTRY_CODES } from './countries';
 import { normalizeDigits, normalizeIdentifier } from './digits';
-import { validateDocumentNumber } from './identity';
+import { inferDocumentType, validateDocumentNumber } from './identity';
 import { normalizePhone } from './phone';
 import { isValidYmd } from './time';
 import { hijriToGregorian } from './hijri';
@@ -298,8 +298,112 @@ export const visitModifySchema = z
   })
   .superRefine(refineReason);
 
+// ───────────────────────────── Arrival registration (no verification code) ─────────────────────────────
+
+export const ID_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+/** Decoded size limit for an uploaded ID photo (the clients downscale before uploading). */
+export const ID_IMAGE_MAX_BYTES = 1_500_000;
+
+export const idImageSchema = z.object({
+  type: z.enum(ID_IMAGE_TYPES, e('validation.idImageType')),
+  /** Base64 (no data: prefix). */
+  data: z
+    .string()
+    .max(Math.ceil((ID_IMAGE_MAX_BYTES * 4) / 3) + 8, e('validation.idImageTooLarge'))
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/, e('validation.idImageType')),
+});
+
+/** Empty optional text fields count as "not provided". */
+const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
+/**
+ * A visitor registers at arrival on one page: identity number, mobile and villa are required; name and
+ * nationality are optional. The administrator completes the profile from the ID photo before approving.
+ */
+export const arrivalSubmitSchema = (opts: SchemaOptions = {}) =>
+  z
+    .object({
+      documentNumber: z.string(e('validation.required')).transform(normalizeIdentifier),
+      /** Inferred from the first digit when omitted (1 = national ID, 2 = Iqama). */
+      documentType: documentTypeSchema.optional(),
+      fullName: z.preprocess(emptyToUndefined, fullNameSchema.optional()),
+      nationality: z.preprocess(emptyToUndefined, nationalitySchema.optional()),
+      villaNumber: villaNumberSchema,
+      reason: z.enum(VISIT_REASONS, e('validation.required')),
+      reasonDetails: z.string().trim().max(300, e('validation.tooLong')).optional().nullable(),
+      /** Defaults to now: the visitor is at the gate. */
+      requestedEntryAt: z.iso.datetime({ offset: true, error: 'validation.invalidDate' }).optional(),
+      durationMinutes: z.int(e('validation.required')).min(15, e('validation.durationMin')).max(10080, e('validation.durationMax')),
+      gateCode: z.string().trim().max(32).optional().nullable(),
+      locale: z.enum(LOCALES).optional(),
+      idImage: idImageSchema.optional().nullable(),
+    })
+    .extend(mobileInputSchema.shape)
+    .transform((v) => ({ ...v, documentType: v.documentType ?? inferDocumentType(v.documentNumber) ?? 'national_id' }))
+    .superRefine((v, ctx) => {
+      refineDocument(v, ctx, opts.checksum ?? true);
+      refineMobile(v, ctx);
+      refineReason(v, ctx);
+    })
+    .transform(finalizeMobile);
+export type ArrivalSubmitInput = z.input<ReturnType<typeof arrivalSubmitSchema>>;
+
+export const idScanSchema = z.object({ idImage: idImageSchema });
+
+// ───────────────────────────── Gate quick entry (security) ─────────────────────────────
+
+export const DOCUMENT_KINDS = ['national_id', 'iqama', 'passport'] as const;
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+/** Security records a visitor with a photo of the ID / Iqama / passport and the villa number. */
+export const quickEntrySchema = z.object({
+  villaNumber: villaNumberSchema,
+  idImage: idImageSchema,
+  documentKind: z.enum(DOCUMENT_KINDS).optional().nullable(),
+  documentNumber: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .transform((v) => normalizeDigits(v).toUpperCase().replace(/[\s-]/g, ''))
+      .pipe(z.string().regex(/^[A-Z0-9]{5,20}$/, e('validation.invalid')))
+      .optional(),
+  ),
+  fullName: z.preprocess(emptyToUndefined, z.string().trim().min(2, e('validation.invalid')).max(120, e('validation.tooLong')).optional()),
+  nationality: z.preprocess(emptyToUndefined, nationalitySchema.optional()),
+  gateId: idSchema.optional().nullable(),
+});
+export type QuickEntryInput = z.input<typeof quickEntrySchema>;
+
+export const ownerResponseSchema = z.object({ token: z.string().max(200), response: z.enum(['confirmed', 'declined']) });
+
+/** The administrator's decision; corrected values replace what the visitor typed. */
+export const arrivalApproveSchema = (opts: SchemaOptions = {}) =>
+  z
+    .object({
+      documentType: documentTypeSchema,
+      documentNumber: z.string(e('validation.required')).transform(normalizeIdentifier),
+      fullName: fullNameSchema,
+      nationality: nationalitySchema,
+      documentExpiry: documentExpiryInputSchema,
+      villaNumber: villaNumberSchema,
+    })
+    .extend(mobileInputSchema.shape)
+    .superRefine((v, ctx) => {
+      refineDocument(v, ctx, opts.checksum ?? true);
+      refineMobile(v, ctx);
+    })
+    .transform(finalizeMobile);
+
+export const arrivalListQuerySchema = z.object({
+  status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+export const requiredReasonSchema = requiredString(500).refine((v) => v.length >= 3, e('validation.reasonLength'));
+
 export const rejectSchema = z.object({
-  reason: requiredString(500).refine((v) => v.length >= 3, e('validation.reasonLength')),
+  reason: requiredReasonSchema,
   expectedVersion: z.int().min(1).optional(),
 });
 
@@ -353,9 +457,28 @@ export const gateSchema = z.object({
 });
 export const gateUpdateSchema = gateSchema.partial().extend({ regenerateCode: z.boolean().optional() });
 
+/** Optional phone number in any common format, stored as E.164. */
+const optionalMobileSchema = z
+  .string()
+  .trim()
+  .max(32)
+  .nullable()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const res = normalizePhone(v, 'SA');
+    if (!res.ok) {
+      ctx.addIssue({ code: 'custom', message: `validation.phone.${res.error}` });
+      return z.NEVER;
+    }
+    return res.e164;
+  });
+
 export const villaSchema = z.object({
   number: villaNumberSchema,
   label: z.string().trim().max(80).optional().nullable(),
+  ownerName: z.string().trim().max(120).optional().nullable(),
+  ownerMobile: optionalMobileSchema,
   isActive: z.boolean().default(true),
 });
 export const villaUpdateSchema = villaSchema.partial();

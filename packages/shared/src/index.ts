@@ -14,3 +14,4 @@ export * from './scan';
 export * from './errors';
 export * from './api-types';
 export * from './i18n';
+export * from './id-scan';

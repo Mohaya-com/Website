@@ -86,6 +86,7 @@ export default function SettingsPage() {
           <div className="divide-y divide-line border-t border-line px-5 py-2">
             <Switch checked={form.identityChecksumValidation} onChange={(v) => setForm({ ...form, identityChecksumValidation: v })} label={label('identityChecksumValidation')} />
             <Switch checked={form.allowVisitorSelfRegistration} onChange={(v) => setForm({ ...form, allowVisitorSelfRegistration: v })} label={label('allowVisitorSelfRegistration')} />
+            <Switch checked={form.allowArrivalRegistration} onChange={(v) => setForm({ ...form, allowArrivalRegistration: v })} label={label('allowArrivalRegistration')} />
           </div>
         </Card>
         {save.isError && !Object.keys(fields).length && <Banner tone="danger">{isApiError(save.error) ? t.dynamic(save.error.messageKey) : t('errors.internal_error')}</Banner>}

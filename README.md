@@ -264,6 +264,37 @@ At the gate (mobile or web):
 
 Clear messages cover every outcome: pending, rejected, cancelled, expired, too early, window closed, document expired, already inside, already used, no active check-in, wrong gate, and invalid code. Nothing is authorized offline or from cached data.
 
+## Gate quick entry (security)
+
+The main workflow at the gate. Security staff land on **Gate** (`/staff/gate`, permission `gate.quick_entry`):
+
+- **Entry:** photograph the ID, Iqama or passport, type the villa number, and press *Record entry*. The date and time are recorded automatically.
+  - Passports are read from the machine-readable zone (ICAO 9303 TD3). Check digits are verified, so a misread line is never accepted.
+  - Saudi ID and Iqama text is read with Tesseract (Arabic and English models). The number and name are optional fields.
+  - The photo is always stored with the entry.
+- **Owner confirmation (optional):**
+  - If the villa has an owner mobile (set on the Villas page), the guard gets a `wa.me` link with a ready message. It opens WhatsApp on the guard's phone, so no messaging provider is needed.
+  - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner confirms or declines.
+  - The answer appears live next to the visitor.
+- **Exit:** the *Exit* tab lists everyone inside, covering both quick entries and visits checked in with a pass. Tapping a name and confirming records the exit time.
+- **History:** *Gate log* (`/staff/gate/history`) shows entries and exits, who recorded them, and the owner's response.
+- **Privacy:** photos are served only to staff with `no-store` and deleted 30 days after exit. Every action is audited. Owner contact details are never included in the villa options visitors can read.
+- Arabic guide: [deploy/GATE.ar.md](deploy/GATE.ar.md).
+
+## Arrival registration (no verification code)
+
+When no SMS/WhatsApp provider is used, visitors register themselves at arrival at `/arrive` (linked from the visitor entry page and from gate QR landings):
+
+- **ID photo reading:** an optional photo of the ID/Iqama is downscaled in the browser and read on the server with Tesseract (`tesseract.js` with the bundled English model; no third-party service). The identity number (accepted only with a valid check digit), English name, nationality and expiry date (Gregorian or Hijri) pre-fill the form. Every field stays editable, and manual entry works without a photo.
+- **Administrator verification:** requests appear under **Arrivals** (`arrivals.review`, administrators). The ID photo is shown beside the editable entries, alongside any existing profile with the same number. Approval creates the profile, or updates it with a versioned and audited change, then creates and approves the visit and issues the pass. Rejection records a reason that the visitor sees.
+- **Privacy:**
+  - The submitter only follows their own request through a random status token, stored hashed and kept in the URL fragment or local storage. A request for someone else's identity number never reveals that profile.
+  - Photos are stored in PostgreSQL, served only to administrators with `no-store`, and deleted 30 days after the decision.
+  - Unreviewed requests close after 24 hours.
+  - Submissions and scans are rate-limited per IP.
+- Toggle: *Settings → Allow registration at arrival without a code*. Arabic guide: [deploy/ARRIVAL.ar.md](deploy/ARRIVAL.ar.md).
+- *OCR is verified on synthetic card images (unit tests, a browser run, and inside the Docker image under a 512 MB limit). It has not been verified on photos of real cards, so accuracy will vary with photo quality.*
+
 ## Visitor verification (OTP) and SMS
 
 - The visitor enters document type, ID/Iqama number and mobile number (Arabic or Western digits; `05…`, `5…`, `+9665…` or international numbers). The server **always returns the same response**:

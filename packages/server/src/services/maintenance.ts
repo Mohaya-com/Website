@@ -5,6 +5,8 @@ import type { ServerContext } from '../context';
 import { inTransaction } from '../context';
 import { describeError, logger } from '../logger';
 import { publish } from '../realtime';
+import { sweepArrivals } from './arrivals';
+import { sweepQuickEntryImages } from './quick-entries';
 import { audit } from './audit';
 import { notifyStaff, notifyVisitor } from './notifications';
 import { revokeActivePass } from './passes';
@@ -14,6 +16,8 @@ export interface MaintenanceResult {
   autoCancelled: number;
   expired: number;
   overdueFlagged: number;
+  arrivalsClosed: number;
+  idImagesRemoved: number;
 }
 
 const BATCH = 200;
@@ -28,7 +32,7 @@ const BATCH = 200;
  *     and are never checked out automatically
  */
 export async function runMaintenance(ctx: ServerContext): Promise<MaintenanceResult> {
-  const result: MaintenanceResult = { autoCancelled: 0, expired: 0, overdueFlagged: 0 };
+  const result: MaintenanceResult = { autoCancelled: 0, expired: 0, overdueFlagged: 0, arrivalsClosed: 0, idImagesRemoved: 0 };
   await inTransaction(ctx, async (scope) => {
     const { tx, now } = scope;
     const settings = await loadSettings(tx);
@@ -84,6 +88,10 @@ export async function runMaintenance(ctx: ServerContext): Promise<MaintenanceRes
       await publish(tx, { t: 'visit', visitId: v.id, visitorId: v.visitorId, status: 'checked_in' });
     }
     result.overdueFlagged = overdue.length;
+
+    const arrivals = await sweepArrivals(scope);
+    result.arrivalsClosed = arrivals.closed;
+    result.idImagesRemoved = arrivals.imagesRemoved + (await sweepQuickEntryImages(scope));
 
     // Housekeeping (no personal data needs to be kept in these tables).
     const dayAgo = new Date(now.getTime() - 86_400_000);

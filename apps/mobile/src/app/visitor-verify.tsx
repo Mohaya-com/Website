@@ -99,7 +99,16 @@ export default function VisitorVerify() {
         </View>
       </Row>
       {error ? <Banner tone="danger">{t.dynamic(error)}</Banner> : null}
-      {smsUnavailable ? <Banner tone="warning">{t('auth.smsUnavailable')}</Banner> : null}
+      {smsUnavailable && config?.allowArrivalRegistration ? (
+        <Card style={{ gap: space.md }}>
+          <AppText variant="subheading">{t('arrival.title')}</AppText>
+          <AppText variant="caption">{t('arrival.subtitle')}</AppText>
+          <Button title={t('arrival.startCta')} variant="accent" size="lg" onPress={() => void Linking.openURL(`${API_URL}/arrive`)} />
+          <Button title={t('gateLanding.viewMyPass')} variant="secondary" onPress={() => void Linking.openURL(`${API_URL}/arrive/status`)} />
+        </Card>
+      ) : smsUnavailable ? (
+        <Banner tone="warning">{t('auth.smsUnavailable')}</Banner>
+      ) : null}
 
       {!challenge ? (
         <Card style={{ gap: space.lg }}>

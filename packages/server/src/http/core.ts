@@ -27,6 +27,8 @@ export type Handler = (rc: RouteContext) => Promise<unknown>;
 
 export interface RouteDef {
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  /** Larger request bodies for uploads (default 64 KB). */
+  maxBodyBytes?: number;
   path: string;
   auth: AuthMode;
   /** Staff who must change their password may still call this route. */
@@ -237,7 +239,7 @@ export function createRouter(ctx: ServerContext, routes: RouteDef[]): Router {
           if (!bodyRead) {
             bodyRead = true;
             const text = await req.text();
-            if (text.length > MAX_BODY_BYTES) throw new ApiError(413, 'validation_error');
+            if (text.length > (matched.maxBodyBytes ?? MAX_BODY_BYTES)) throw new ApiError(413, 'validation_error');
             try {
               parsedBody = text ? JSON.parse(text) : {};
             } catch {

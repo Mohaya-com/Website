@@ -17,10 +17,13 @@
     "maintenance": "tsx src/scripts/maintenance.ts"
   },
   "dependencies": {
+    "@tesseract.js-data/ara": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "@vms/db": "workspace:*",
     "@vms/shared": "workspace:*",
     "drizzle-orm": "^0.45.4",
     "pg": "^8.23.1",
+    "tesseract.js": "^6.0.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
