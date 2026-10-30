@@ -92,7 +92,7 @@ export function toGateDTO(g: Gate): GateDTO {
 }
 
 export function toVillaDTO(v: Villa): VillaDTO {
-  return { id: v.id, number: v.number, label: v.label, isActive: v.isActive };
+  return { id: v.id, number: v.number, label: v.label, isActive: v.isActive, ownerName: v.ownerName, ownerMobile: v.ownerMobile };
 }
 
 export function toNotificationDTO(n: Notification): NotificationDTO {

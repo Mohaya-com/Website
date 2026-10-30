@@ -6,6 +6,7 @@ import { inTransaction } from '../context';
 import { describeError, logger } from '../logger';
 import { publish } from '../realtime';
 import { sweepArrivals } from './arrivals';
+import { sweepQuickEntryImages } from './quick-entries';
 import { audit } from './audit';
 import { notifyStaff, notifyVisitor } from './notifications';
 import { revokeActivePass } from './passes';
@@ -90,7 +91,7 @@ export async function runMaintenance(ctx: ServerContext): Promise<MaintenanceRes
 
     const arrivals = await sweepArrivals(scope);
     result.arrivalsClosed = arrivals.closed;
-    result.idImagesRemoved = arrivals.imagesRemoved;
+    result.idImagesRemoved = arrivals.imagesRemoved + (await sweepQuickEntryImages(scope));
 
     // Housekeeping (no personal data needs to be kept in these tables).
     const dayAgo = new Date(now.getTime() - 86_400_000);

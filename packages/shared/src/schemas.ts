@@ -350,6 +350,32 @@ export type ArrivalSubmitInput = z.input<ReturnType<typeof arrivalSubmitSchema>>
 
 export const idScanSchema = z.object({ idImage: idImageSchema });
 
+// ───────────────────────────── Gate quick entry (security) ─────────────────────────────
+
+export const DOCUMENT_KINDS = ['national_id', 'iqama', 'passport'] as const;
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
+
+/** Security records a visitor with a photo of the ID / Iqama / passport and the villa number. */
+export const quickEntrySchema = z.object({
+  villaNumber: villaNumberSchema,
+  idImage: idImageSchema,
+  documentKind: z.enum(DOCUMENT_KINDS).optional().nullable(),
+  documentNumber: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .transform((v) => normalizeDigits(v).toUpperCase().replace(/[\s-]/g, ''))
+      .pipe(z.string().regex(/^[A-Z0-9]{5,20}$/, e('validation.invalid')))
+      .optional(),
+  ),
+  fullName: z.preprocess(emptyToUndefined, z.string().trim().min(2, e('validation.invalid')).max(120, e('validation.tooLong')).optional()),
+  nationality: z.preprocess(emptyToUndefined, nationalitySchema.optional()),
+  gateId: idSchema.optional().nullable(),
+});
+export type QuickEntryInput = z.input<typeof quickEntrySchema>;
+
+export const ownerResponseSchema = z.object({ token: z.string().max(200), response: z.enum(['confirmed', 'declined']) });
+
 /** The administrator's decision; corrected values replace what the visitor typed. */
 export const arrivalApproveSchema = (opts: SchemaOptions = {}) =>
   z
@@ -431,9 +457,28 @@ export const gateSchema = z.object({
 });
 export const gateUpdateSchema = gateSchema.partial().extend({ regenerateCode: z.boolean().optional() });
 
+/** Optional phone number in any common format, stored as E.164. */
+const optionalMobileSchema = z
+  .string()
+  .trim()
+  .max(32)
+  .nullable()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const res = normalizePhone(v, 'SA');
+    if (!res.ok) {
+      ctx.addIssue({ code: 'custom', message: `validation.phone.${res.error}` });
+      return z.NEVER;
+    }
+    return res.e164;
+  });
+
 export const villaSchema = z.object({
   number: villaNumberSchema,
   label: z.string().trim().max(80).optional().nullable(),
+  ownerName: z.string().trim().max(120).optional().nullable(),
+  ownerMobile: optionalMobileSchema,
   isActive: z.boolean().default(true),
 });
 export const villaUpdateSchema = villaSchema.partial();

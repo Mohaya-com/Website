@@ -29,6 +29,13 @@
       "when": 1793338465634,
       "tag": "0003_arrival_optional_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793402530698,
+      "tag": "0004_quick_entries",
+      "breakpoints": true
     }
   ]
 }

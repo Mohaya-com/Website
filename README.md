@@ -264,6 +264,23 @@ At the gate (mobile or web):
 
 Clear messages cover every outcome: pending, rejected, cancelled, expired, too early, window closed, document expired, already inside, already used, no active check-in, wrong gate, and invalid code. Nothing is authorized offline or from cached data.
 
+## Gate quick entry (security)
+
+The main workflow at the gate. Security staff land on **Gate** (`/staff/gate`, permission `gate.quick_entry`):
+
+- **Entry:** photograph the ID, Iqama or passport, type the villa number, and press *Record entry*. The date and time are recorded automatically.
+  - Passports are read from the machine-readable zone (ICAO 9303 TD3). Check digits are verified, so a misread line is never accepted.
+  - Saudi ID and Iqama text is read with Tesseract (Arabic and English models). The number and name are optional fields.
+  - The photo is always stored with the entry.
+- **Owner confirmation (optional):**
+  - If the villa has an owner mobile (set on the Villas page), the guard gets a `wa.me` link with a ready message. It opens WhatsApp on the guard's phone, so no messaging provider is needed.
+  - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner confirms or declines.
+  - The answer appears live next to the visitor.
+- **Exit:** the *Exit* tab lists everyone inside, covering both quick entries and visits checked in with a pass. Tapping a name and confirming records the exit time.
+- **History:** *Gate log* (`/staff/gate/history`) shows entries and exits, who recorded them, and the owner's response.
+- **Privacy:** photos are served only to staff with `no-store` and deleted 30 days after exit. Every action is audited. Owner contact details are never included in the villa options visitors can read.
+- Arabic guide: [deploy/GATE.ar.md](deploy/GATE.ar.md).
+
 ## Arrival registration (no verification code)
 
 When no SMS/WhatsApp provider is used, visitors register themselves at arrival at `/arrive` (linked from the visitor entry page and from gate QR landings):

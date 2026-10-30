@@ -180,6 +180,7 @@ describe('reading ID photo text', () => {
     expect(parseIdText(text, today)).toEqual({
       documentNumber: '2345678904',
       documentType: 'iqama',
+      documentKind: 'iqama',
       fullName: 'Mohammed Asif Khan',
       nationality: 'PK',
       expiry: { calendar: 'gregorian', date: '2027-03-18' },
@@ -200,6 +201,15 @@ describe('reading ID photo text', () => {
     expect(parseIdText('PS ERI IE\nAL MA LS\n12 3', today).fullName).toBeUndefined();
     expect(parseIdText('الاسم: أحمد جمال سالم', today).fullName).toBe('أحمد جمال سالم');
     expect(parseIdText('Name: SAMPLE TEST PERSON', today).fullName).toBe('Sample Test Person');
+  });
+
+  it('reads a passport from its machine-readable zone (ICAO 9303 specimen)', () => {
+    const mrz = 'P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\nL898902C36UTO7408122F1204159ZE184226B<<<<<10';
+    expect(parseIdText(mrz, today)).toEqual({ documentKind: 'passport', documentNumber: 'L898902C3', fullName: 'Anna Maria Eriksson', expiry: { calendar: 'gregorian', date: '2012-04-15' } });
+    const egyptian = 'P<EGYHASSAN<<AHMED<<<<<<<<<<<<<<<<<<<<<<<<<<\nA123456784EGY9001014M3012315<<<<<<<<<<<<<<04';
+    expect(parseIdText(egyptian, today)).toMatchObject({ documentKind: 'passport', documentNumber: 'A12345678', nationality: 'EG', fullName: 'Ahmed Hassan' });
+    // A wrong check digit means a misread line: nothing is taken from it.
+    expect(parseIdText('P<UTOERIKSSON<<ANNA<MARIA<<<<<<<<<<<<<<<<<<<\nL898902C37UTO7408122F1204159ZE184226B<<<<<10', today).documentKind).toBeUndefined();
   });
 
   it('ignores numbers that fail the check digit and returns nothing it cannot match', () => {

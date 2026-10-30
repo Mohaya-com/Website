@@ -163,6 +163,9 @@ export interface VillaDTO {
   number: string;
   label: string | null;
   isActive: boolean;
+  /** Administrators only (never in the public villa options). */
+  ownerName?: string | null;
+  ownerMobile?: string | null;
 }
 
 export interface ActorRefDTO {
@@ -383,6 +386,7 @@ export interface ArrivalScanResultDTO {
   /** Text was found in the image (fields may still be empty when nothing could be matched). */
   recognized: boolean;
   fields: {
+    documentKind?: DocumentType | 'passport';
     documentType?: DocumentType;
     documentNumber?: string;
     fullName?: string;
@@ -441,6 +445,52 @@ export interface ArrivalDetailDTO {
   rejectReason: string | null;
   visitorId: string | null;
   visitId: string | null;
+}
+
+export type OwnerResponse = 'confirmed' | 'declined';
+
+/** A visitor recorded at the gate by security (photo + villa), entered automatically at the time of recording. */
+export interface QuickEntryDTO {
+  id: string;
+  status: 'inside' | 'exited';
+  villaNumber: string;
+  villaHasOwnerContact: boolean;
+  gate: GateRefDTO | null;
+  documentKind: DocumentType | 'passport' | null;
+  documentNumber: string | null;
+  fullName: string | null;
+  nationality: string | null;
+  hasImage: boolean;
+  enteredAt: string;
+  enteredBy: string | null;
+  exitedAt: string | null;
+  exitedBy: string | null;
+  ownerResponse: OwnerResponse | null;
+  ownerRespondedAt: string | null;
+}
+
+/** Returned when an entry is recorded: how to ask the villa owner to confirm. */
+export interface QuickEntryCreatedDTO {
+  entry: QuickEntryDTO;
+  ownerLink: string;
+  /** wa.me link with a ready message, when the villa has an owner mobile number. */
+  ownerWhatsappUrl: string | null;
+}
+
+/** Everyone currently inside: gate quick entries and visits checked in with a pass. */
+export interface InsideNowDTO {
+  entries: QuickEntryDTO[];
+  visits: { id: string; reference: string; fullName: string; villaNumber: string; checkedInAt: string }[];
+}
+
+/** What the villa owner sees through the confirmation link. */
+export interface OwnerConfirmationDTO {
+  compoundName: string;
+  villaNumber: string;
+  fullName: string | null;
+  enteredAt: string;
+  status: 'inside' | 'exited';
+  response: OwnerResponse | null;
 }
 
 export interface PublicConfigDTO {

@@ -87,15 +87,20 @@ export async function listVillas(db: DbExecutor, query: { q?: string | undefined
 /** All active villa numbers for request forms (villa numbers are not personal data). */
 export async function villaOptions(db: DbExecutor): Promise<VillaDTO[]> {
   const rows = await db.select().from(villas).where(eq(villas.isActive, true)).orderBy(sql`length(${villas.number})`, asc(villas.number));
-  return rows.map(toVillaDTO);
+  // Owner contact details stay out of the options every signed-in visitor can read.
+  return rows.map((v) => ({ id: v.id, number: v.number, label: v.label, isActive: v.isActive }));
 }
 
-export async function createVilla(scope: TxScope, admin: StaffPrincipal, input: { number: string; label?: string | null | undefined; isActive: boolean }): Promise<VillaDTO> {
+export async function createVilla(
+  scope: TxScope,
+  admin: StaffPrincipal,
+  input: { number: string; label?: string | null | undefined; ownerName?: string | null | undefined; ownerMobile?: string | null | undefined; isActive: boolean },
+): Promise<VillaDTO> {
   const [dup] = await scope.tx.select({ id: villas.id }).from(villas).where(eq(villas.number, input.number)).limit(1);
   if (dup) throw new ApiError(409, 'villa_taken', { number: 'errors.villa_taken' });
   const [villa] = await scope.tx
     .insert(villas)
-    .values({ number: input.number, label: input.label ?? null, isActive: input.isActive, createdAt: scope.now, updatedAt: scope.now })
+    .values({ number: input.number, label: input.label ?? null, ownerName: input.ownerName ?? null, ownerMobile: input.ownerMobile ?? null, isActive: input.isActive, createdAt: scope.now, updatedAt: scope.now })
     .returning();
   await audit(scope.tx, { actor: actorOf(admin), action: 'villa.created', entityType: 'villa', entityId: villa!.id, metadata: { number: input.number }, at: scope.now });
   return toVillaDTO(villa!);
@@ -105,7 +110,7 @@ export async function updateVilla(
   scope: TxScope,
   admin: StaffPrincipal,
   id: string,
-  input: Partial<{ number: string; label: string | null; isActive: boolean }>,
+  input: Partial<{ number: string; label: string | null; ownerName: string | null; ownerMobile: string | null; isActive: boolean }>,
 ): Promise<VillaDTO> {
   const [current] = await scope.tx.select().from(villas).where(eq(villas.id, id)).for('update').limit(1);
   if (!current) throw new ApiError(404, 'not_found');

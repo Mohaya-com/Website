@@ -208,7 +208,7 @@ export function useVillaOptions() {
 }
 
 /** Free-text villa number (Arabic digits accepted); suggests numbers already on file. */
-export function VillaNumberInput({ value, onChange, error }: { value: string; onChange: (v: string) => void; error?: string | null }) {
+export function VillaNumberInput({ value, onChange, error, large }: { value: string; onChange: (v: string) => void; error?: string | null; large?: boolean }) {
   const { t } = useI18n();
   const { data } = useVillaOptions();
   const listId = useId();
@@ -216,7 +216,7 @@ export function VillaNumberInput({ value, onChange, error }: { value: string; on
     <Field label={t('fields.villa')} required error={error} hint={t('request.villaNumberHint')}>
       {(a) => (
         <>
-          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} list={listId} className="ltr-nums text-lg font-semibold" value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
+          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} list={listId} className={cn('ltr-nums font-semibold', large ? 'h-16 text-3xl tracking-wider' : 'text-lg')} value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
           <datalist id={listId}>{data?.items.map((v) => <option key={v.id} value={v.number} />)}</datalist>
         </>
       )}

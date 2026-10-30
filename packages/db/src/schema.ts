@@ -157,6 +157,9 @@ export const villas = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     number: text('number').notNull(),
     label: text('label'),
+    /** Contact for visit confirmations (E.164). */
+    ownerName: text('owner_name'),
+    ownerMobile: text('owner_mobile'),
     isActive: boolean('is_active').notNull().default(true),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
@@ -503,6 +506,52 @@ export const arrivalRegistrations = pgTable(
   ],
 );
 
+// ───────────────────────────── Gate quick entries ─────────────────────────────
+
+export const quickEntryStatusEnum = pgEnum('quick_entry_status', ['inside', 'exited']);
+export const ownerResponseEnum = pgEnum('owner_response', ['confirmed', 'declined']);
+
+/**
+ * A visitor recorded at the gate by security: a photo of the ID / Iqama / passport and the villa.
+ * Entry time is set automatically; exit is recorded with one tap. Identity details read from the
+ * photo are optional. The villa owner can confirm or decline through a private link.
+ */
+export const quickEntries = pgTable(
+  'quick_entries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    status: quickEntryStatusEnum('status').notNull().default('inside'),
+    villaId: uuid('villa_id')
+      .notNull()
+      .references(() => villas.id),
+    gateId: uuid('gate_id').references(() => gates.id),
+    documentKind: text('document_kind'),
+    documentNumber: text('document_number'),
+    fullName: text('full_name'),
+    nationality: text('nationality'),
+    idImage: bytea('id_image'),
+    idImageType: text('id_image_type'),
+    idImageRemovedAt: ts('id_image_removed_at'),
+    enteredAt: ts('entered_at').notNull(),
+    enteredByUserId: uuid('entered_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    exitedAt: ts('exited_at'),
+    exitedByUserId: uuid('exited_by_user_id').references(() => users.id),
+    ownerTokenHash: text('owner_token_hash').notNull(),
+    ownerResponse: ownerResponseEnum('owner_response'),
+    ownerRespondedAt: ts('owner_responded_at'),
+  },
+  (t) => [
+    index('quick_entries_inside_idx').on(t.status, t.enteredAt),
+    index('quick_entries_villa_idx').on(t.villaId, t.enteredAt),
+    index('quick_entries_document_idx').on(t.documentNumber),
+    uniqueIndex('quick_entries_owner_token_unique').on(t.ownerTokenHash),
+    check('quick_entries_document_kind', sql`${t.documentKind} IS NULL OR ${t.documentKind} IN ('national_id', 'iqama', 'passport')`),
+    check('quick_entries_exit', sql`(${t.status} = 'inside' AND ${t.exitedAt} IS NULL) OR (${t.status} = 'exited' AND ${t.exitedAt} IS NOT NULL)`),
+  ],
+);
+
 // ───────────────────────────── Audit, settings, rate limits ─────────────────────────────
 
 /** Append-only. UPDATE and DELETE are blocked by a trigger (see migration 0001). */
@@ -559,3 +608,4 @@ export type Session = typeof sessions.$inferSelect;
 export type OtpChallenge = typeof otpChallenges.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type ArrivalRegistration = typeof arrivalRegistrations.$inferSelect;
+export type QuickEntry = typeof quickEntries.$inferSelect;

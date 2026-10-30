@@ -33,6 +33,8 @@ export const PERMISSIONS = {
   'audit.read': ['admin'],
   /** Review arrival registrations (made without a verification code) against the ID photo. */
   'arrivals.review': ['admin'],
+  /** Record visitors at the gate with an ID photo and the villa, and record their exit. */
+  'gate.quick_entry': ['admin', 'security'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

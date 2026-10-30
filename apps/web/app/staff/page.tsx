@@ -3,6 +3,7 @@
 import { AlertTriangle, CalendarCheck2, CheckCheck, ClipboardCheck, DoorOpen, LogIn, LogOut, ScanLine, UserPlus, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import type { DashboardSummaryDTO, GateEventDTO, Paginated, VisitDTO } from '@vms/shared';
+import { GateConsole } from '@/components/gate-console';
 import { StatCard, VisitRow } from '@/components/staff-widgets';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/feedback';
 import { Badge, ButtonLink, Card, CardHeader, PageHeader } from '@/components/ui/primitives';
@@ -194,5 +195,6 @@ function SecurityHome() {
 export default function StaffHomePage() {
   const { data: session } = useSession();
   if (!session) return <LoadingRows rows={6} />;
-  return session.role === 'admin' ? <AdminDashboard /> : <SecurityHome />;
+  // Security staff land directly on the gate screen (entry with an ID photo, one-tap exit).
+  return session.role === 'admin' ? <AdminDashboard /> : <GateConsole />;
 }
