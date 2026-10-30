@@ -6,6 +6,7 @@ import {
   DoorOpen,
   History,
   Home,
+  IdCard,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -37,11 +38,12 @@ interface NavItem {
   icon: LucideIcon;
   permission?: Permission;
   exact?: boolean;
-  badge?: 'pending' | 'inside';
+  badge?: 'pending' | 'inside' | 'arrivals';
 }
 
 const OPERATIONS: NavItem[] = [
   { href: '/staff', label: 'nav.dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/staff/arrivals', label: 'nav.arrivals', icon: IdCard, permission: 'arrivals.review', badge: 'arrivals' },
   { href: '/staff/requests', label: 'nav.requests', icon: ClipboardCheck, permission: 'visits.approve', badge: 'pending' },
   { href: '/staff/scan', label: 'nav.scan', icon: ScanLine, permission: 'scan.verify' },
   { href: '/staff/inside', label: 'nav.inside', icon: DoorOpen, permission: 'occupancy.read', badge: 'inside' },
@@ -59,7 +61,7 @@ const MANAGEMENT: NavItem[] = [
   { href: '/staff/audit', label: 'nav.audit', icon: KeyRound, permission: 'audit.read' },
 ];
 
-function NavLinks({ items, role, onNavigate, summary }: { items: NavItem[]; role: SessionInfoDTO['role']; onNavigate?: () => void; summary?: DashboardSummaryDTO }) {
+function NavLinks({ items, role, onNavigate, summary, arrivalsPending }: { items: NavItem[]; role: SessionInfoDTO['role']; onNavigate?: () => void; summary?: DashboardSummaryDTO; arrivalsPending?: number }) {
   const { t } = useI18n();
   const pathname = usePathname();
   return (
@@ -69,7 +71,7 @@ function NavLinks({ items, role, onNavigate, summary }: { items: NavItem[]; role
         .map((item) => {
           const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.href === '/staff' && role === 'security' ? Home : item.icon;
-          const count = item.badge === 'pending' ? summary?.pending : item.badge === 'inside' ? summary?.inside : undefined;
+          const count = item.badge === 'pending' ? summary?.pending : item.badge === 'inside' ? summary?.inside : item.badge === 'arrivals' ? arrivalsPending : undefined;
           return (
             <li key={item.href}>
               <Link
@@ -83,7 +85,7 @@ function NavLinks({ items, role, onNavigate, summary }: { items: NavItem[]; role
               >
                 <Icon className={cn('size-5 shrink-0', active ? 'text-teal-200' : 'text-navy-200 group-hover:text-white')} aria-hidden />
                 <span className="flex-1 truncate">{item.href === '/staff' && role === 'security' ? t('nav.home') : t(item.label)}</span>
-                {count ? <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold ltr-nums', item.badge === 'pending' ? 'bg-amber-400 text-navy-950' : 'bg-white/15 text-white')}>{count}</span> : null}
+                {count ? <span className={cn('rounded-full px-2 py-0.5 text-xs font-bold ltr-nums', item.badge === 'pending' || item.badge === 'arrivals' ? 'bg-amber-400 text-navy-950' : 'bg-white/15 text-white')}>{count}</span> : null}
               </Link>
             </li>
           );
@@ -100,6 +102,13 @@ function Sidebar({ session, onNavigate }: { session: SessionInfoDTO; onNavigate?
     queryFn: () => api<DashboardSummaryDTO>('/dashboard/summary'),
     refetchInterval: 30_000,
   });
+  const reviewsArrivals = hasPermission(session.role, 'arrivals.review');
+  const { data: arrivals } = useQuery({
+    queryKey: ['arrivals', 'pending-count'],
+    queryFn: () => api<{ pendingCount: number }>('/arrivals?status=pending&pageSize=1'),
+    enabled: reviewsArrivals,
+    refetchInterval: 30_000,
+  });
   const showManagement = MANAGEMENT.some((i) => !i.permission || hasPermission(session.role, i.permission));
   return (
     <div className="flex h-full flex-col bg-navy-900 text-white">
@@ -109,7 +118,7 @@ function Sidebar({ session, onNavigate }: { session: SessionInfoDTO; onNavigate?
       <nav aria-label={t('app.name')} className="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
         <div>
           <p className="mb-2 px-3 text-[11px] font-bold uppercase tracking-wider text-navy-200/80">{t('admin.sections.operations')}</p>
-          <NavLinks items={OPERATIONS} role={session.role} onNavigate={onNavigate} summary={summary} />
+          <NavLinks items={OPERATIONS} role={session.role} onNavigate={onNavigate} summary={summary} arrivalsPending={arrivals?.pendingCount} />
         </div>
         {showManagement && (
           <div>

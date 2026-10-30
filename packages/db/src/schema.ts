@@ -14,6 +14,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  customType,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 
@@ -29,6 +30,7 @@ import {
  */
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 export const staffRoleEnum = pgEnum('staff_role', ['admin', 'security']);
 export const documentTypeEnum = pgEnum('document_type', ['national_id', 'iqama']);
@@ -441,6 +443,65 @@ export const sessions = pgTable(
   ],
 );
 
+// ───────────────────────────── Arrival registrations (no OTP) ─────────────────────────────
+
+export const arrivalStatusEnum = pgEnum('arrival_status', ['pending', 'approved', 'rejected']);
+
+/**
+ * A visitor's self-registration at arrival, made without a verification code. Nothing it contains is
+ * trusted until an administrator compares it with the uploaded ID image and approves it; approval
+ * creates or updates the visitor profile and an approved visit. The submitter only ever sees the
+ * status of this request (through a random status token stored as a hash), never a profile.
+ */
+export const arrivalRegistrations = pgTable(
+  'arrival_registrations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reference: text('reference').notNull(),
+    status: arrivalStatusEnum('status').notNull().default('pending'),
+    statusTokenHash: text('status_token_hash').notNull(),
+    documentType: documentTypeEnum('document_type').notNull(),
+    documentNumber: text('document_number').notNull(),
+    fullName: text('full_name').notNull(),
+    nationality: text('nationality').notNull(),
+    documentExpiryDate: date('document_expiry_date', { mode: 'string' }).notNull(),
+    documentExpiryCalendar: calendarKindEnum('document_expiry_calendar').notNull(),
+    documentExpiryOriginal: text('document_expiry_original').notNull(),
+    mobile: text('mobile').notNull(),
+    villaNumber: text('villa_number').notNull(),
+    reason: visitReasonEnum('reason').notNull(),
+    reasonDetails: text('reason_details'),
+    requestedEntryAt: ts('requested_entry_at').notNull(),
+    durationMinutes: integer('duration_minutes').notNull(),
+    requestedGateId: uuid('requested_gate_id').references(() => gates.id),
+    locale: localeEnum('locale').notNull().default('ar'),
+    /** Photo of the ID / Iqama (JPEG, PNG or WebP). Removed by the maintenance sweep after the retention period. */
+    idImage: bytea('id_image'),
+    idImageType: text('id_image_type'),
+    idImageRemovedAt: ts('id_image_removed_at'),
+    ipHash: text('ip_hash'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+    decidedAt: ts('decided_at'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+    rejectReason: text('reject_reason'),
+    visitorId: uuid('visitor_id').references(() => visitors.id),
+    visitId: uuid('visit_id').references(() => visits.id),
+  },
+  (t) => [
+    uniqueIndex('arrival_registrations_reference_unique').on(t.reference),
+    uniqueIndex('arrival_registrations_status_token_unique').on(t.statusTokenHash),
+    index('arrival_registrations_status_idx').on(t.status, t.createdAt),
+    index('arrival_registrations_document_idx').on(t.documentNumber),
+    check('arrival_registrations_document_number_format', sql`${t.documentNumber} ~ '^[0-9]{10}$'`),
+    check('arrival_registrations_mobile_e164', sql`${t.mobile} ~ '^\\+[1-9][0-9]{6,14}$'`),
+    check(
+      'arrival_registrations_decision',
+      sql`(${t.status} = 'pending' AND ${t.decidedAt} IS NULL) OR (${t.status} <> 'pending' AND ${t.decidedAt} IS NOT NULL)`,
+    ),
+    check('arrival_registrations_approved_links', sql`${t.status} <> 'approved' OR (${t.visitorId} IS NOT NULL AND ${t.visitId} IS NOT NULL)`),
+  ],
+);
+
 // ───────────────────────────── Audit, settings, rate limits ─────────────────────────────
 
 /** Append-only. UPDATE and DELETE are blocked by a trigger (see migration 0001). */
@@ -496,3 +557,4 @@ export type Notification = typeof notifications.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type OtpChallenge = typeof otpChallenges.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type ArrivalRegistration = typeof arrivalRegistrations.$inferSelect;

@@ -358,6 +358,89 @@ export interface WhatsAppTestResultDTO {
   messageId: string | null;
 }
 
+export type ArrivalStatus = 'pending' | 'approved' | 'rejected';
+
+/** Returned once on submission. The status token is the visitor's only way to follow the request. */
+export interface ArrivalSubmitResultDTO {
+  reference: string;
+  statusToken: string;
+}
+
+/** What the visitor sees about their arrival request (no profile data). */
+export interface ArrivalStatusDTO {
+  reference: string;
+  status: ArrivalStatus;
+  createdAt: string;
+  villaNumber: string;
+  rejectReason: string | null;
+  /** The approved visit's status, once approved. */
+  visitStatus: VisitStatus | null;
+  /** The pass, while the approved visit can still be used for entry. */
+  pass: PassDTO | null;
+}
+
+export interface ArrivalScanResultDTO {
+  /** Text was found in the image (fields may still be empty when nothing could be matched). */
+  recognized: boolean;
+  fields: {
+    documentType?: DocumentType;
+    documentNumber?: string;
+    fullName?: string;
+    nationality?: string;
+    expiry?: { calendar: CalendarKind; date: string };
+  };
+}
+
+export interface ArrivalListItemDTO {
+  id: string;
+  reference: string;
+  status: ArrivalStatus;
+  fullName: string;
+  documentType: DocumentType;
+  documentNumberMasked: string;
+  villaNumber: string;
+  requestedEntryAt: string;
+  createdAt: string;
+  hasImage: boolean;
+  /** A profile with this identity number already exists. */
+  returningVisitor: boolean;
+}
+
+export interface ArrivalDetailDTO {
+  id: string;
+  reference: string;
+  status: ArrivalStatus;
+  documentType: DocumentType;
+  documentNumber: string;
+  fullName: string;
+  nationality: string;
+  documentExpiry: { date: string; calendar: CalendarKind; original: string };
+  mobile: string;
+  villaNumber: string;
+  reason: VisitReason;
+  reasonDetails: string | null;
+  requestedEntryAt: string;
+  durationMinutes: number;
+  requestedGate: GateRefDTO | null;
+  createdAt: string;
+  hasImage: boolean;
+  imageRemoved: boolean;
+  /** The existing profile with the same identity number, for comparison. */
+  existingVisitor: {
+    id: string;
+    fullName: string;
+    nationality: string;
+    mobile: string;
+    documentExpiryDate: string;
+    hasOpenVisit: boolean;
+  } | null;
+  decidedAt: string | null;
+  decidedBy: ActorRefDTO | null;
+  rejectReason: string | null;
+  visitorId: string | null;
+  visitId: string | null;
+}
+
 export interface PublicConfigDTO {
   compoundNameAr: string;
   compoundNameEn: string;
@@ -369,6 +452,7 @@ export interface PublicConfigDTO {
   maxAdvanceBookingDays: number;
   identityChecksumValidation: boolean;
   allowVisitorSelfRegistration: boolean;
+  allowArrivalRegistration: boolean;
   sms: { provider: SmsProviderKind; available: boolean; developmentMode: boolean };
   push: { enabled: boolean };
   demoData: boolean;

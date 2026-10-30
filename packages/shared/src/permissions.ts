@@ -31,6 +31,8 @@ export const PERMISSIONS = {
   'gates.manage': ['admin'],
   'settings.manage': ['admin'],
   'audit.read': ['admin'],
+  /** Review arrival registrations (made without a verification code) against the ID photo. */
+  'arrivals.review': ['admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

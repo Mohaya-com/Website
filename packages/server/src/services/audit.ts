@@ -13,7 +13,7 @@ export function actorOf(principal: Principal | null | undefined): Actor {
 export interface AuditEntry {
   actor: Actor;
   action: string;
-  entityType: 'visit' | 'visitor' | 'user' | 'gate' | 'villa' | 'settings' | 'session';
+  entityType: 'visit' | 'visitor' | 'user' | 'gate' | 'villa' | 'settings' | 'session' | 'arrival';
   entityId?: string | null;
   /** Masked or non-identifying values only. */
   metadata?: Record<string, unknown>;

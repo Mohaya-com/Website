@@ -298,8 +298,78 @@ export const visitModifySchema = z
   })
   .superRefine(refineReason);
 
+// ───────────────────────────── Arrival registration (no verification code) ─────────────────────────────
+
+export const ID_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+/** Decoded size limit for an uploaded ID photo (the clients downscale before uploading). */
+export const ID_IMAGE_MAX_BYTES = 1_500_000;
+
+export const idImageSchema = z.object({
+  type: z.enum(ID_IMAGE_TYPES, e('validation.idImageType')),
+  /** Base64 (no data: prefix). */
+  data: z
+    .string()
+    .max(Math.ceil((ID_IMAGE_MAX_BYTES * 4) / 3) + 8, e('validation.idImageTooLarge'))
+    .regex(/^[A-Za-z0-9+/]+={0,2}$/, e('validation.idImageType')),
+});
+
+/** A visitor registers at arrival: identity, contact and visit details in one step, verified later by an administrator. */
+export const arrivalSubmitSchema = (opts: SchemaOptions = {}) =>
+  z
+    .object({
+      documentType: documentTypeSchema,
+      documentNumber: z.string(e('validation.required')).transform(normalizeIdentifier),
+      fullName: fullNameSchema,
+      nationality: nationalitySchema,
+      documentExpiry: documentExpiryInputSchema,
+      villaNumber: villaNumberSchema,
+      reason: z.enum(VISIT_REASONS, e('validation.required')),
+      reasonDetails: z.string().trim().max(300, e('validation.tooLong')).optional().nullable(),
+      requestedEntryAt: z.iso.datetime({ offset: true, error: 'validation.invalidDate' }),
+      durationMinutes: z.int(e('validation.required')).min(15, e('validation.durationMin')).max(10080, e('validation.durationMax')),
+      gateCode: z.string().trim().max(32).optional().nullable(),
+      locale: z.enum(LOCALES).optional(),
+      idImage: idImageSchema.optional().nullable(),
+    })
+    .extend(mobileInputSchema.shape)
+    .superRefine((v, ctx) => {
+      refineDocument(v, ctx, opts.checksum ?? true);
+      refineMobile(v, ctx);
+      refineReason(v, ctx);
+    })
+    .transform(finalizeMobile);
+export type ArrivalSubmitInput = z.input<ReturnType<typeof arrivalSubmitSchema>>;
+
+export const idScanSchema = z.object({ idImage: idImageSchema });
+
+/** The administrator's decision; corrected values replace what the visitor typed. */
+export const arrivalApproveSchema = (opts: SchemaOptions = {}) =>
+  z
+    .object({
+      documentType: documentTypeSchema,
+      documentNumber: z.string(e('validation.required')).transform(normalizeIdentifier),
+      fullName: fullNameSchema,
+      nationality: nationalitySchema,
+      documentExpiry: documentExpiryInputSchema,
+      villaNumber: villaNumberSchema,
+    })
+    .extend(mobileInputSchema.shape)
+    .superRefine((v, ctx) => {
+      refineDocument(v, ctx, opts.checksum ?? true);
+      refineMobile(v, ctx);
+    })
+    .transform(finalizeMobile);
+
+export const arrivalListQuerySchema = z.object({
+  status: z.enum(['pending', 'approved', 'rejected']).default('pending'),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+export const requiredReasonSchema = requiredString(500).refine((v) => v.length >= 3, e('validation.reasonLength'));
+
 export const rejectSchema = z.object({
-  reason: requiredString(500).refine((v) => v.length >= 3, e('validation.reasonLength')),
+  reason: requiredReasonSchema,
   expectedVersion: z.int().min(1).optional(),
 });
 

@@ -28,6 +28,7 @@ export const API_ERROR_CODES = [
   'last_admin',
   'username_taken',
   'villa_taken',
+  'arrival_registration_disabled',
   'whatsapp_not_configured',
   'whatsapp_token_invalid',
   'whatsapp_token_unreadable',

@@ -20,7 +20,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ['@vms/shared', '@vms/server', '@vms/db'],
-  serverExternalPackages: ['pg'],
+  serverExternalPackages: ['pg', 'tesseract.js'],
   poweredByHeader: false,
   reactStrictMode: true,
   async headers() {

@@ -22,6 +22,8 @@ export const systemSettingsSchema = z
     identityChecksumValidation: z.boolean(),
     /** Allow visitors to register themselves through OTP verification. */
     allowVisitorSelfRegistration: z.boolean(),
+    /** Allow visitors to register at arrival without a verification code (an administrator verifies each one). */
+    allowArrivalRegistration: z.boolean(),
   })
   .refine((s) => s.defaultVisitDurationMinutes <= s.maxVisitDurationMinutes, {
     path: ['defaultVisitDurationMinutes'],
@@ -42,6 +44,7 @@ export const DEFAULT_SETTINGS: SystemSettings = {
   overdueGraceMinutes: 15,
   identityChecksumValidation: true,
   allowVisitorSelfRegistration: true,
+  allowArrivalRegistration: true,
 };
 
 export const MIN_VISIT_DURATION_MINUTES = 15;
