@@ -395,7 +395,8 @@ export interface ArrivalListItemDTO {
   id: string;
   reference: string;
   status: ArrivalStatus;
-  fullName: string;
+  /** Optional for the visitor. */
+  fullName: string | null;
   documentType: DocumentType;
   documentNumberMasked: string;
   villaNumber: string;
@@ -412,9 +413,10 @@ export interface ArrivalDetailDTO {
   status: ArrivalStatus;
   documentType: DocumentType;
   documentNumber: string;
-  fullName: string;
-  nationality: string;
-  documentExpiry: { date: string; calendar: CalendarKind; original: string };
+  /** Name, nationality and expiry may be missing: the administrator completes them from the ID photo. */
+  fullName: string | null;
+  nationality: string | null;
+  documentExpiry: { date: string; calendar: CalendarKind; original: string } | null;
   mobile: string;
   villaNumber: string;
   reason: VisitReason;

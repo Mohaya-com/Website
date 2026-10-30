@@ -223,6 +223,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@tesseract.js-data/ara':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@tesseract.js-data/eng':
         specifier: ^1.0.0
         version: 1.0.0
@@ -2106,6 +2109,9 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@tesseract.js-data/ara@1.0.0':
+    resolution: {integrity: sha512-bB60Av6dsv9LRUrlaM6SgnAwjUpdbanw9Jf3mbhDCZAhX7Cp8u7YjI8EWfCvMhH3R2QJT/2EA8cijqPANOhwaA==}
 
   '@tesseract.js-data/eng@1.0.0':
     resolution: {integrity: sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg==}
@@ -6319,6 +6325,8 @@ snapshots:
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.3.0
+
+  '@tesseract.js-data/ara@1.0.0': {}
 
   '@tesseract.js-data/eng@1.0.0': {}
 

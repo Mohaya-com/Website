@@ -17,6 +17,7 @@
     "maintenance": "tsx src/scripts/maintenance.ts"
   },
   "dependencies": {
+    "@tesseract.js-data/ara": "^1.0.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "@vms/db": "workspace:*",
     "@vms/shared": "workspace:*",

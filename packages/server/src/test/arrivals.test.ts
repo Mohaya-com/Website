@@ -22,15 +22,10 @@ const localMobile = (e164: string) => `0${e164.slice(4)}`;
 function arrival(overrides: Record<string, unknown> = {}) {
   const today = zonedDateString(env.clock.now(), 'Asia/Riyadh');
   return {
-    documentType: 'national_id',
     documentNumber: uniqueDocumentNumber(),
-    fullName: 'سالم أحمد القحطاني',
-    nationality: 'SA',
-    documentExpiry: { calendar: 'gregorian', date: addDaysToYmd(today, 400) },
     mobile: localMobile(uniqueMobile()),
     villaNumber: fx.villa.number,
     reason: 'personal',
-    requestedEntryAt: env.clock.now().toISOString(),
     durationMinutes: 120,
     gateCode: fx.gate.code,
     ...overrides,
@@ -71,9 +66,10 @@ describe('arrival registration without a verification code', () => {
     expect(fakeImage.status).toBe(400);
     expect(fakeImage.body.error.fields.idImage).toBe('validation.idImageType');
 
-    const today = zonedDateString(env.clock.now(), 'Asia/Riyadh');
-    const expired = await submit(arrival({ documentExpiry: { calendar: 'gregorian', date: addDaysToYmd(today, -1) } }));
-    expect(expired.status).toBe(400);
+    const missingVilla = await submit(arrival({ villaNumber: '' }));
+    expect(missingVilla.body.error.fields.villaNumber).toBeDefined();
+    const badName = await submit(arrival({ fullName: 'x' }));
+    expect(badName.body.error.fields.fullName).toBeDefined();
   });
 
   it('is reviewed by administrators only', async () => {
@@ -97,17 +93,22 @@ describe('arrival registration without a verification code', () => {
     expect(Buffer.from(await image.arrayBuffer()).equals(PNG)).toBe(true);
 
     const detail = await call(env, 'GET', `/arrivals/${row!.id}`, { token: fx.admin.token });
-    expect(detail.body).toMatchObject({ status: 'pending', documentNumber: body.documentNumber, existingVisitor: null, hasImage: true });
+    expect(detail.body).toMatchObject({ status: 'pending', documentNumber: body.documentNumber, documentType: 'national_id', fullName: null, nationality: null, documentExpiry: null, existingVisitor: null, hasImage: true });
+
+    // Approval needs the name, nationality and expiry the administrator reads from the photo.
+    const incomplete = await call(env, 'POST', `/arrivals/${row!.id}/approve`, { token: fx.admin.token, body: { ...detail.body, mobile: detail.body.mobile } });
+    expect(incomplete.status).toBe(400);
 
     // The administrator corrects the name before approving.
     const approved = await call(env, 'POST', `/arrivals/${row!.id}/approve`, {
       token: fx.admin.token,
-      body: { ...detail.body, fullName: 'سالم أحمد محمد القحطاني', documentExpiry: { calendar: 'gregorian', date: detail.body.documentExpiry.date }, mobile: detail.body.mobile },
+      body: { ...detail.body, fullName: 'سالم أحمد محمد القحطاني', nationality: 'SA', documentExpiry: { calendar: 'gregorian', date: addDaysToYmd(zonedDateString(env.clock.now(), 'Asia/Riyadh'), 400) }, mobile: detail.body.mobile },
     });
     expect(approved.status).toBe(200);
     expect(approved.body.status).toBe('approved');
     const [visitor] = await env.ctx.db.select().from(visitors).where(eq(visitors.documentNumber, body.documentNumber as string));
     expect(visitor!.fullName).toBe('سالم أحمد محمد القحطاني');
+    expect(visitor!.documentType).toBe('national_id');
 
     const s = await status(res.body.statusToken);
     expect(s.body.status).toBe('approved');
@@ -120,7 +121,10 @@ describe('arrival registration without a verification code', () => {
     expect(verified.status).toBe(200);
     expect(verified.body.ok).toBe(true);
 
-    const again = await call(env, 'POST', `/arrivals/${row!.id}/approve`, { token: fx.admin.token, body: { ...detail.body, mobile: detail.body.mobile } });
+    const again = await call(env, 'POST', `/arrivals/${row!.id}/approve`, {
+      token: fx.admin.token,
+      body: { ...detail.body, fullName: 'سالم أحمد', nationality: 'SA', documentExpiry: { calendar: 'gregorian', date: '2030-01-01' } },
+    });
     expect(again.status).toBe(409);
   });
 
@@ -139,7 +143,7 @@ describe('arrival registration without a verification code', () => {
     // Keep the registered name, accept the new mobile.
     const approved = await call(env, 'POST', `/arrivals/${row!.id}/approve`, {
       token: fx.admin.token,
-      body: { ...detail.body, fullName: existing.visitor.fullName, mobile: detail.body.mobile },
+      body: { ...detail.body, fullName: existing.visitor.fullName, nationality: existing.visitor.nationality, documentExpiry: { calendar: 'gregorian', date: existing.visitor.documentExpiryDate }, mobile: detail.body.mobile },
     });
     expect(approved.status).toBe(200);
     const [v] = await env.ctx.db.select().from(visitors).where(eq(visitors.id, existing.visitor.id));
@@ -177,7 +181,7 @@ describe('arrival registration without a verification code', () => {
     await env.ctx.db.insert(settingsTable).values({ key: 'allowArrivalRegistration', value: false }).onConflictDoUpdate({ target: settingsTable.key, set: { value: false } });
     env.ctx.cache.settings = null;
     try {
-      const res = await submit(arrival({ requestedEntryAt: env.clock.now().toISOString() }));
+      const res = await submit(arrival());
       expect(res.status).toBe(403);
       expect(res.body.error.code).toBe('arrival_registration_disabled');
       expect((await call(env, 'GET', '/public/config')).body.allowArrivalRegistration).toBe(false);

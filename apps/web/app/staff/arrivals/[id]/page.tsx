@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { use, useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { arrivalApproveSchema, countryName, fieldErrorsFromIssues, type ArrivalDetailDTO, type DocumentType } from '@vms/shared';
-import { DocumentExpiryInput, DocumentNumberInput, NationalitySelect, PhoneInput, VillaNumberInput, expiryFromStored, expiryToInput, type ExpiryValue, type PhoneValue } from '@/components/inputs';
+import { DocumentExpiryInput, DocumentNumberInput, NationalitySelect, PhoneInput, VillaNumberInput, emptyExpiry, expiryFromStored, expiryToInput, type ExpiryValue, type PhoneValue } from '@/components/inputs';
 import { Dialog } from '@/components/ui/dialog';
 import { Banner, ErrorState, LoadingRows } from '@/components/ui/feedback';
 import { Field, Input, Segmented, Textarea } from '@/components/ui/form';
@@ -30,9 +30,9 @@ function formFrom(d: ArrivalDetailDTO): FormState {
   return {
     documentType: d.documentType,
     documentNumber: d.documentNumber,
-    fullName: d.fullName,
-    nationality: d.nationality,
-    expiry: expiryFromStored(d.documentExpiry.date, d.documentExpiry.calendar, d.documentExpiry.original),
+    fullName: d.fullName ?? '',
+    nationality: d.nationality ?? (d.documentType === 'national_id' ? 'SA' : ''),
+    expiry: d.documentExpiry ? expiryFromStored(d.documentExpiry.date, d.documentExpiry.calendar, d.documentExpiry.original) : emptyExpiry(),
     // Saudi numbers are shown in the local form (05…); others stay in international form, which is accepted as typed.
     phone: d.mobile.startsWith('+966') ? { country: 'SA', number: `0${d.mobile.slice(4)}` } : { country: 'SA', number: d.mobile },
     villaNumber: d.villaNumber,
@@ -199,6 +199,7 @@ export default function ArrivalReviewPage({ params }: { params: Promise<{ id: st
           <Card>
             <CardHeader title={t('arrivals.enteredData')} />
             <fieldset disabled={!pending} className="space-y-5 p-5">
+              {pending && (!d.fullName || !d.nationality || !d.documentExpiry) && <Banner tone="info">{t('arrivals.completeFromPhoto')}</Banner>}
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <Field label={t('fields.documentType')} required>
                   {() => (

@@ -66,7 +66,7 @@ export default function ArrivalsPage() {
                   header: t('fields.visitor'),
                   cell: (a) => (
                     <div>
-                      <p className="font-semibold text-ink">{a.fullName}</p>
+                      <p className="font-semibold text-ink">{a.fullName ?? '—'}</p>
                       <p className="text-xs text-muted ltr-nums">{a.documentNumberMasked}</p>
                     </div>
                   ),

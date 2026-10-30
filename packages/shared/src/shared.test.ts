@@ -196,6 +196,12 @@ describe('reading ID photo text', () => {
     expect(result.expiry).toEqual({ calendar: 'hijri', date: '1452-03-10' });
   });
 
+  it('takes a name only next to a label, never from stray words read off a real card', () => {
+    expect(parseIdText('PS ERI IE\nAL MA LS\n12 3', today).fullName).toBeUndefined();
+    expect(parseIdText('الاسم: أحمد جمال سالم', today).fullName).toBe('أحمد جمال سالم');
+    expect(parseIdText('Name: SAMPLE TEST PERSON', today).fullName).toBe('Sample Test Person');
+  });
+
   it('ignores numbers that fail the check digit and returns nothing it cannot match', () => {
     expect(parseIdText('ID 2345678900 random text', today).documentNumber).toBeUndefined();
     expect(parseIdText('', today)).toEqual({});

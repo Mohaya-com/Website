@@ -14,7 +14,7 @@ import {
 } from './constants';
 import { COUNTRY_CODES } from './countries';
 import { normalizeDigits, normalizeIdentifier } from './digits';
-import { validateDocumentNumber } from './identity';
+import { inferDocumentType, validateDocumentNumber } from './identity';
 import { normalizePhone } from './phone';
 import { isValidYmd } from './time';
 import { hijriToGregorian } from './hijri';
@@ -313,25 +313,33 @@ export const idImageSchema = z.object({
     .regex(/^[A-Za-z0-9+/]+={0,2}$/, e('validation.idImageType')),
 });
 
-/** A visitor registers at arrival: identity, contact and visit details in one step, verified later by an administrator. */
+/** Empty optional text fields count as "not provided". */
+const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
+/**
+ * A visitor registers at arrival on one page: identity number, mobile and villa are required; name and
+ * nationality are optional. The administrator completes the profile from the ID photo before approving.
+ */
 export const arrivalSubmitSchema = (opts: SchemaOptions = {}) =>
   z
     .object({
-      documentType: documentTypeSchema,
       documentNumber: z.string(e('validation.required')).transform(normalizeIdentifier),
-      fullName: fullNameSchema,
-      nationality: nationalitySchema,
-      documentExpiry: documentExpiryInputSchema,
+      /** Inferred from the first digit when omitted (1 = national ID, 2 = Iqama). */
+      documentType: documentTypeSchema.optional(),
+      fullName: z.preprocess(emptyToUndefined, fullNameSchema.optional()),
+      nationality: z.preprocess(emptyToUndefined, nationalitySchema.optional()),
       villaNumber: villaNumberSchema,
       reason: z.enum(VISIT_REASONS, e('validation.required')),
       reasonDetails: z.string().trim().max(300, e('validation.tooLong')).optional().nullable(),
-      requestedEntryAt: z.iso.datetime({ offset: true, error: 'validation.invalidDate' }),
+      /** Defaults to now: the visitor is at the gate. */
+      requestedEntryAt: z.iso.datetime({ offset: true, error: 'validation.invalidDate' }).optional(),
       durationMinutes: z.int(e('validation.required')).min(15, e('validation.durationMin')).max(10080, e('validation.durationMax')),
       gateCode: z.string().trim().max(32).optional().nullable(),
       locale: z.enum(LOCALES).optional(),
       idImage: idImageSchema.optional().nullable(),
     })
     .extend(mobileInputSchema.shape)
+    .transform((v) => ({ ...v, documentType: v.documentType ?? inferDocumentType(v.documentNumber) ?? 'national_id' }))
     .superRefine((v, ctx) => {
       refineDocument(v, ctx, opts.checksum ?? true);
       refineMobile(v, ctx);

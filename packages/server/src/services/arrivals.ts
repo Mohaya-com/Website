@@ -83,14 +83,13 @@ export async function scanIdImage(ctx: ServerContext, image: { type: string; byt
 export interface ArrivalSubmission {
   documentType: DocumentType;
   documentNumber: string;
-  fullName: string;
-  nationality: string;
-  documentExpiry: DocumentExpiryNormalized;
+  fullName?: string | undefined;
+  nationality?: string | undefined;
   mobile: string;
   villaNumber: string;
   reason: VisitReason;
   reasonDetails?: string | null | undefined;
-  requestedEntryAt: string;
+  requestedEntryAt?: string | undefined;
   durationMinutes: number;
   gateCode?: string | null | undefined;
   locale?: Locale | undefined;
@@ -112,18 +111,9 @@ export async function submitArrival(ctx: ServerContext, input: ArrivalSubmission
   await enforceRateLimit(ctx, ARRIVAL_RATE_LIMITS.submitIp, meta.ip);
 
   const now = ctx.clock.now();
-  const entry = new Date(input.requestedEntryAt);
-  const timing = validateRequestTiming({
-    requestedEntryAt: entry,
-    durationMinutes: input.durationMinutes,
-    documentExpiryDate: input.documentExpiry.gregorian,
-    now,
-    settings,
-  });
-  if (timing) {
-    const field = timing.field === 'documentExpiry' ? 'documentExpiry' : timing.field;
-    throw new ApiError(400, 'validation_error', { [field]: `validation.timing.${timing.error}` });
-  }
+  const entry = input.requestedEntryAt ? new Date(input.requestedEntryAt) : now;
+  const timing = validateRequestTiming({ requestedEntryAt: entry, durationMinutes: input.durationMinutes, documentExpiryDate: null, now, settings });
+  if (timing) throw new ApiError(400, 'validation_error', { [timing.field]: `validation.timing.${timing.error}` });
   const gate = input.gateCode ? await findGateByCode(ctx.db, input.gateCode) : null;
 
   const statusToken = randomToken(32);
@@ -136,11 +126,8 @@ export async function submitArrival(ctx: ServerContext, input: ArrivalSubmission
         statusTokenHash: sha256Hex(statusToken),
         documentType: input.documentType,
         documentNumber: input.documentNumber,
-        fullName: input.fullName,
-        nationality: input.nationality,
-        documentExpiryDate: input.documentExpiry.gregorian,
-        documentExpiryCalendar: input.documentExpiry.calendar,
-        documentExpiryOriginal: input.documentExpiry.original,
+        fullName: input.fullName ?? null,
+        nationality: input.nationality ?? null,
         mobile: input.mobile,
         villaNumber: input.villaNumber,
         reason: input.reason,
@@ -196,7 +183,7 @@ export async function getArrivalStatus(ctx: ServerContext, token: string, meta: 
           reference: visit.reference,
           status: visit.status,
           qrValue: passQrValue(ctx, active),
-          visitorName: v?.fullName ?? row.fullName,
+          visitorName: v?.fullName ?? row.fullName ?? '',
           villaNumber: visit.villa.number,
           entryWindowStart: visit.entryWindowStart,
           entryWindowEnd: visit.entryWindowEnd,
@@ -312,7 +299,10 @@ export async function getArrivalDetail(ctx: ServerContext, staff: StaffPrincipal
     documentNumber: r.documentNumber,
     fullName: r.fullName,
     nationality: r.nationality,
-    documentExpiry: { date: r.documentExpiryDate, calendar: r.documentExpiryCalendar, original: r.documentExpiryOriginal },
+    documentExpiry:
+      r.documentExpiryDate && r.documentExpiryCalendar && r.documentExpiryOriginal
+        ? { date: r.documentExpiryDate, calendar: r.documentExpiryCalendar, original: r.documentExpiryOriginal }
+        : null,
     mobile: r.mobile,
     villaNumber: r.villaNumber,
     reason: r.reason,

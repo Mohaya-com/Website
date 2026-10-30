@@ -68,19 +68,22 @@ function findExpiry(text: string, today: string): IdScanFields['expiry'] {
   return best ? { calendar: best.calendar, date: best.date } : undefined;
 }
 
+/**
+ * Only a name next to an explicit label is taken ("Name:" or "الاسم"): photos of real cards produce
+ * plenty of short garbage words, and a wrong name is worse than an empty optional field.
+ */
 function findName(lines: string[]): string | undefined {
   for (const line of lines) {
-    const m = /\bNAME\s*[:.]?\s*([A-Z][A-Z' -]{3,})$/.exec(line);
-    if (m) {
-      const words = m[1]!.split(/\s+/).filter((w) => w.length > 1 && !NAME_STOPWORDS.has(w));
-      if (words.length >= 2) return titleCase(words.join(' '));
+    const latin = /\bNAME\s*[:.]?\s*([A-Z][A-Z' -]{3,})$/.exec(line);
+    if (latin) {
+      const words = latin[1]!.split(/\s+/).filter((w) => !NAME_STOPWORDS.has(w));
+      if (words.length >= 2 && words.every((w) => w.length >= 2) && words.filter((w) => w.length >= 3).length >= 2) return titleCase(words.join(' '));
     }
-  }
-  for (const line of lines) {
-    if (!/^[A-Z][A-Z' -]+$/.test(line)) continue;
-    const words = line.split(/\s+/).filter(Boolean);
-    if (words.length < 2 || words.length > 6 || words.some((w) => NAME_STOPWORDS.has(w) || w.length < 2)) continue;
-    return titleCase(words.join(' '));
+    const arabic = /الاسم\s*[:：]?\s*([\u0621-\u064A\s]{5,})/.exec(line);
+    if (arabic) {
+      const words = arabic[1]!.trim().split(/\s+/).filter((w) => w.length >= 2);
+      if (words.length >= 2) return words.join(' ');
+    }
   }
   return undefined;
 }
