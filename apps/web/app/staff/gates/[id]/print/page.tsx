@@ -23,7 +23,8 @@ export default function GatePrintPage({ params }: { params: Promise<{ id: string
   const compound = config ? (locale === 'ar' ? config.compoundNameAr : config.compoundNameEn) : '';
   const actions = (['entry', 'exit'] as const).filter((a) => (a === 'entry' ? gate.supportsEntry : gate.supportsExit));
   return (
-    <div>
+    // Printed sheets keep day colours.
+    <div className="theme-day">
       <div className="no-print mb-6 flex justify-end">
         <Button icon={<Printer className="size-5" aria-hidden />} onClick={() => window.print()}>
           {t('common.print')}

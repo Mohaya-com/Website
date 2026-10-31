@@ -793,6 +793,9 @@ export const en: Messages = {
     saved: 'Saved',
   },
   invitePass: {
+    welcome: 'Welcome, {name}',
+    welcomeGeneric: 'Welcome',
+    hostWaiting: 'Your host is expecting you at villa {villa}',
     title: 'Visit invitation',
     villa: 'Villa {villa}',
     expected: 'Expected: {time}',

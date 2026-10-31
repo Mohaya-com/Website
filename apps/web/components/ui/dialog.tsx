@@ -42,7 +42,7 @@ export function Dialog({
         onClose();
       }}
       className={cn(
-        'm-auto w-[calc(100%-2rem)] rounded-2xl border border-line bg-white p-0 text-ink shadow-raised backdrop:bg-navy-950/45 backdrop:backdrop-blur-[2px] open:animate-pop',
+        'm-auto w-[calc(100%-2rem)] rounded-2xl border border-line bg-white p-0 text-ink shadow-raised backdrop:bg-black/50 backdrop:backdrop-blur-[2px] open:animate-pop',
         size === 'sm' ? 'max-w-md' : size === 'lg' ? 'max-w-3xl' : 'max-w-xl',
       )}
     >

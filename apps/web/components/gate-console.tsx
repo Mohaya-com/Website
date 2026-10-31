@@ -637,19 +637,20 @@ function BoardList({ title, icon, items, empty, timeLabel }: { title: string; ic
 
 // ───────────────────────────── Dashboard ─────────────────────────────
 
-function ActionTile({ icon, title, hint, onClick, tone }: { icon: ReactNode; title: string; hint: string; onClick: () => void; tone: 'teal' | 'navy' }) {
+function ActionTile({ icon, title, hint, onClick, tone }: { icon: ReactNode; title: string; hint: string; onClick: () => void; tone: 'primary' | 'paper' }) {
+  const primary = tone === 'primary';
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center text-white shadow-sm transition-transform active:scale-[0.98]',
-        tone === 'teal' ? 'bg-teal-700 hover:bg-teal-800' : 'bg-navy-900 hover:bg-navy-800',
+        'flex min-h-28 flex-col items-center justify-center gap-2 rounded-2xl p-4 text-center shadow-sm transition-transform active:scale-[0.98]',
+        primary ? 'bg-navy-900 text-white hover:bg-navy-800' : 'border border-line bg-white text-navy-900 hover:bg-navy-50',
       )}
     >
-      <span className="grid size-12 place-items-center rounded-full bg-white/15">{icon}</span>
-      <span className="text-lg font-extrabold leading-tight">{title}</span>
-      <span className="text-xs text-white/80">{hint}</span>
+      <span className={cn('grid size-12 place-items-center rounded-full', primary ? 'bg-white/15' : 'bg-navy-50 text-teal-700')}>{icon}</span>
+      <span className="font-display text-lg font-bold leading-tight">{title}</span>
+      <span className={cn('text-xs', primary ? 'text-white/80' : 'text-muted')}>{hint}</span>
     </button>
   );
 }
@@ -691,8 +692,8 @@ export function GateConsole({ title, subtitle }: { title?: string; subtitle?: st
         )}
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <ActionTile tone="teal" icon={<UserPlus className="size-7" aria-hidden />} title={t('gate.newVisitor')} hint={t('gate.newVisitorHint')} onClick={() => setMode('new')} />
-        <ActionTile tone="navy" icon={<QrCode className="size-7" aria-hidden />} title={t('gate.registeredCheckIn')} hint={t('gate.registeredCheckInHint')} onClick={() => setMode('checkin')} />
+        <ActionTile tone="primary" icon={<UserPlus className="size-7" aria-hidden />} title={t('gate.newVisitor')} hint={t('gate.newVisitorHint')} onClick={() => setMode('new')} />
+        <ActionTile tone="paper" icon={<QrCode className="size-7" aria-hidden />} title={t('gate.registeredCheckIn')} hint={t('gate.registeredCheckInHint')} onClick={() => setMode('checkin')} />
       </div>
       {inside.isError && <ErrorState error={inside.error} onRetry={() => void inside.refetch()} />}
       <InsideList inside={inside.data} gateId={gateId} />

@@ -11,7 +11,8 @@ type Size = 'sm' | 'md' | 'lg';
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-navy-900 text-white hover:bg-navy-800 active:bg-navy-950 shadow-sm',
-  accent: 'bg-teal-600 text-white hover:bg-teal-700 active:bg-teal-800 shadow-sm',
+  // Concierge: the main action is palm green; brass is kept for highlights, not buttons.
+  accent: 'bg-navy-700 text-white hover:bg-navy-800 active:bg-navy-900 shadow-sm',
   success: 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm',
   secondary: 'bg-white text-navy-900 border border-line-strong hover:bg-navy-50 active:bg-navy-100',
   danger: 'bg-red-700 text-white hover:bg-red-800 active:bg-red-900 shadow-sm',
