@@ -99,6 +99,7 @@ export const ar = {
     security: 'أمن البوابة',
     visitor: 'زائر',
     registrant: 'زائر جديد',
+    resident: 'ساكن',
   },
   status: {
     pending: 'بانتظار الموافقة',

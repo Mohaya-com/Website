@@ -3,6 +3,7 @@ import { createRouter, type Router } from './core';
 import { adminRoutes } from './routes/admin';
 import { arrivalRoutes } from './routes/arrivals';
 import { gateRoutes } from './routes/gate';
+import { residentRoutes } from './routes/residents';
 import { authRoutes } from './routes/auth';
 import { eventRoutes, notificationRoutes } from './routes/notifications';
 import { publicRoutes } from './routes/public';
@@ -10,7 +11,7 @@ import { staffRoutes } from './routes/staff';
 import { visitorSelfRoutes } from './routes/visitor-self';
 
 export function createApi(ctx: ServerContext): Router {
-  return createRouter(ctx, [...publicRoutes, ...arrivalRoutes, ...gateRoutes, ...authRoutes, ...visitorSelfRoutes, ...staffRoutes, ...adminRoutes, ...notificationRoutes, ...eventRoutes]);
+  return createRouter(ctx, [...publicRoutes, ...arrivalRoutes, ...gateRoutes, ...residentRoutes, ...authRoutes, ...visitorSelfRoutes, ...staffRoutes, ...adminRoutes, ...notificationRoutes, ...eventRoutes]);
 }
 
 // Module-level cache: rebuilt on hot reload in development, while the database context stays process-wide.

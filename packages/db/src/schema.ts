@@ -48,7 +48,7 @@ export const calendarKindEnum = pgEnum('calendar_kind', ['gregorian', 'hijri']);
 export const gateActionEnum = pgEnum('gate_action', ['entry', 'exit']);
 export const passStatusEnum = pgEnum('pass_status', ['active', 'revoked', 'consumed']);
 export const actorTypeEnum = pgEnum('actor_type', ['user', 'visitor', 'system']);
-export const sessionKindEnum = pgEnum('session_kind', ['staff', 'visitor', 'registrant']);
+export const sessionKindEnum = pgEnum('session_kind', ['staff', 'visitor', 'registrant', 'resident']);
 export const clientKindEnum = pgEnum('client_kind', ['web', 'mobile']);
 export const localeEnum = pgEnum('locale', ['ar', 'en']);
 export const gateEventMethodEnum = pgEnum('gate_event_method', ['qr', 'manual']);
@@ -425,6 +425,7 @@ export const sessions = pgTable(
     userId: uuid('user_id').references(() => users.id),
     visitorId: uuid('visitor_id').references(() => visitors.id),
     otpChallengeId: uuid('otp_challenge_id').references(() => otpChallenges.id),
+    residentId: uuid('resident_id').references((): AnyPgColumn => residents.id),
     client: clientKindEnum('client').notNull(),
     userAgent: text('user_agent'),
     createdAt: ts('created_at').notNull().defaultNow(),
@@ -439,9 +440,10 @@ export const sessions = pgTable(
     index('sessions_visitor_idx').on(t.visitorId),
     check(
       'sessions_subject',
-      sql`(${t.kind} = 'staff' AND ${t.userId} IS NOT NULL AND ${t.visitorId} IS NULL)
-        OR (${t.kind} = 'visitor' AND ${t.visitorId} IS NOT NULL AND ${t.userId} IS NULL)
-        OR (${t.kind} = 'registrant' AND ${t.otpChallengeId} IS NOT NULL AND ${t.userId} IS NULL AND ${t.visitorId} IS NULL)`,
+      sql`(${t.kind}::text = 'staff' AND ${t.userId} IS NOT NULL AND ${t.visitorId} IS NULL AND ${t.residentId} IS NULL)
+        OR (${t.kind}::text = 'visitor' AND ${t.visitorId} IS NOT NULL AND ${t.userId} IS NULL AND ${t.residentId} IS NULL)
+        OR (${t.kind}::text = 'registrant' AND ${t.otpChallengeId} IS NOT NULL AND ${t.userId} IS NULL AND ${t.visitorId} IS NULL AND ${t.residentId} IS NULL)
+        OR (${t.kind}::text = 'resident' AND ${t.residentId} IS NOT NULL AND ${t.userId} IS NULL AND ${t.visitorId} IS NULL)`,
     ),
   ],
 );
@@ -508,7 +510,7 @@ export const arrivalRegistrations = pgTable(
 
 // ───────────────────────────── Gate quick entries ─────────────────────────────
 
-export const quickEntryStatusEnum = pgEnum('quick_entry_status', ['inside', 'exited']);
+export const quickEntryStatusEnum = pgEnum('quick_entry_status', ['inside', 'exited', 'expected', 'cancelled']);
 export const ownerResponseEnum = pgEnum('owner_response', ['confirmed', 'declined']);
 
 /**
@@ -532,10 +534,15 @@ export const quickEntries = pgTable(
     idImage: bytea('id_image'),
     idImageType: text('id_image_type'),
     idImageRemovedAt: ts('id_image_removed_at'),
-    enteredAt: ts('entered_at').notNull(),
-    enteredByUserId: uuid('entered_by_user_id')
-      .notNull()
-      .references(() => users.id),
+    /** Set when the visitor arrives; empty while a resident's invitation is still expected. */
+    enteredAt: ts('entered_at'),
+    enteredByUserId: uuid('entered_by_user_id').references(() => users.id),
+    /** Invitations created by a resident in advance (status "expected" until the visitor arrives). */
+    expectedAt: ts('expected_at'),
+    visitorMobile: text('visitor_mobile'),
+    invitedByResidentId: uuid('invited_by_resident_id').references((): AnyPgColumn => residents.id),
+    inviteTokenHash: text('invite_token_hash'),
+    createdAt: ts('created_at').notNull().defaultNow(),
     exitedAt: ts('exited_at'),
     exitedByUserId: uuid('exited_by_user_id').references(() => users.id),
     ownerTokenHash: text('owner_token_hash').notNull(),
@@ -547,8 +554,75 @@ export const quickEntries = pgTable(
     index('quick_entries_villa_idx').on(t.villaId, t.enteredAt),
     index('quick_entries_document_idx').on(t.documentNumber),
     uniqueIndex('quick_entries_owner_token_unique').on(t.ownerTokenHash),
+    uniqueIndex('quick_entries_invite_token_unique').on(t.inviteTokenHash),
+    index('quick_entries_expected_idx').on(t.villaId, t.expectedAt),
     check('quick_entries_document_kind', sql`${t.documentKind} IS NULL OR ${t.documentKind} IN ('national_id', 'iqama', 'passport')`),
-    check('quick_entries_exit', sql`(${t.status} = 'inside' AND ${t.exitedAt} IS NULL) OR (${t.status} = 'exited' AND ${t.exitedAt} IS NOT NULL)`),
+    check(
+      'quick_entries_lifecycle',
+      sql`(${t.status}::text = 'expected' AND ${t.enteredAt} IS NULL AND ${t.exitedAt} IS NULL AND ${t.expectedAt} IS NOT NULL)
+        OR (${t.status}::text = 'inside' AND ${t.enteredAt} IS NOT NULL AND ${t.exitedAt} IS NULL)
+        OR (${t.status}::text = 'exited' AND ${t.enteredAt} IS NOT NULL AND ${t.exitedAt} IS NOT NULL)
+        OR (${t.status}::text = 'cancelled' AND ${t.enteredAt} IS NULL)`,
+    ),
+  ],
+);
+
+// ───────────────────────────── Residents and maintenance ─────────────────────────────
+
+/**
+ * One account per villa. The username is the villa number; the first sign-up for a villa is held as
+ * "pending" until an administrator approves it, and nobody else can register the same villa (the
+ * administrator resets it when needed).
+ */
+export const residents = pgTable(
+  'residents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    villaId: uuid('villa_id')
+      .notNull()
+      .references(() => villas.id),
+    passwordHash: text('password_hash').notNull(),
+    fullName: text('full_name'),
+    mobile: text('mobile'),
+    status: text('status').$type<'pending' | 'active' | 'rejected' | 'disabled'>().notNull().default('pending'),
+    locale: localeEnum('locale').notNull().default('ar'),
+    failedLoginCount: integer('failed_login_count').notNull().default(0),
+    lockedUntil: ts('locked_until'),
+    lastLoginAt: ts('last_login_at'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+    decidedAt: ts('decided_at'),
+    decidedByUserId: uuid('decided_by_user_id').references(() => users.id),
+  },
+  (t) => [
+    uniqueIndex('residents_villa_unique').on(t.villaId),
+    index('residents_status_idx').on(t.status, t.createdAt),
+    check('residents_status', sql`${t.status} IN ('pending', 'active', 'rejected', 'disabled')`),
+  ],
+);
+
+export const maintenanceRequests = pgTable(
+  'maintenance_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reference: text('reference').notNull(),
+    villaId: uuid('villa_id')
+      .notNull()
+      .references(() => villas.id),
+    residentId: uuid('resident_id').references(() => residents.id),
+    category: text('category').notNull(),
+    description: text('description').notNull(),
+    status: text('status').$type<'open' | 'in_progress' | 'done' | 'cancelled'>().notNull().default('open'),
+    adminNote: text('admin_note'),
+    createdAt: ts('created_at').notNull().defaultNow(),
+    updatedAt: ts('updated_at').notNull().defaultNow(),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+  },
+  (t) => [
+    uniqueIndex('maintenance_reference_unique').on(t.reference),
+    index('maintenance_status_idx').on(t.status, t.createdAt),
+    index('maintenance_villa_idx').on(t.villaId, t.createdAt),
+    check('maintenance_status', sql`${t.status} IN ('open', 'in_progress', 'done', 'cancelled')`),
+    check('maintenance_category', sql`${t.category} IN ('plumbing', 'electrical', 'ac', 'carpentry', 'cleaning', 'other')`),
   ],
 );
 
@@ -609,3 +683,5 @@ export type OtpChallenge = typeof otpChallenges.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type ArrivalRegistration = typeof arrivalRegistrations.$inferSelect;
 export type QuickEntry = typeof quickEntries.$inferSelect;
+export type Resident = typeof residents.$inferSelect;
+export type MaintenanceRequest = typeof maintenanceRequests.$inferSelect;

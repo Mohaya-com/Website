@@ -36,6 +36,13 @@
       "when": 1793402530698,
       "tag": "0004_quick_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793405884937,
+      "tag": "0005_residents_invites_maintenance",
+      "breakpoints": true
     }
   ]
 }

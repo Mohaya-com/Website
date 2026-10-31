@@ -5,6 +5,8 @@ import {
   DOCUMENT_TYPES,
   GATE_ACTIONS,
   LOCALES,
+  MAINTENANCE_CATEGORIES,
+  MAINTENANCE_STATUSES,
   PAGE_SIZE_DEFAULT,
   PAGE_SIZE_MAX,
   STAFF_ROLES,
@@ -91,6 +93,23 @@ export const mobileInputSchema = z.object({
   mobile: z.string(e('validation.required')).trim().max(32, e('validation.tooLong')),
   mobileCountry: z.string().trim().length(2).toUpperCase().optional(),
 });
+
+/** Optional phone number in any common format, stored as E.164. */
+const optionalMobileSchema = z
+  .string()
+  .trim()
+  .max(32)
+  .nullable()
+  .optional()
+  .transform((v, ctx) => {
+    if (!v) return null;
+    const res = normalizePhone(v, 'SA');
+    if (!res.ok) {
+      ctx.addIssue({ code: 'custom', message: `validation.phone.${res.error}` });
+      return z.NEVER;
+    }
+    return res.e164;
+  });
 
 function refineDocument(
   value: { documentType: (typeof DOCUMENT_TYPES)[number]; documentNumber: string },
@@ -376,6 +395,56 @@ export type QuickEntryInput = z.input<typeof quickEntrySchema>;
 
 export const ownerResponseSchema = z.object({ token: z.string().max(200), response: z.enum(['confirmed', 'declined']) });
 
+/** The QR scanned at the gate: an invitation, a pass, or any code that carries an identity number. */
+export const gateQrSchema = z.object({ qr: z.string().trim().min(1).max(2048), gateId: idSchema.optional().nullable() });
+
+// ───────────────────────────── Residents ─────────────────────────────
+
+/** First sign-up for a villa: the villa number is the username. An administrator approves it once. */
+export const residentSignupSchema = z
+  .object({
+    villaNumber: villaNumberSchema,
+    password: passwordSchema,
+    passwordConfirm: z.string(),
+    fullName: z.preprocess(emptyToUndefined, z.string().trim().min(2, e('validation.invalid')).max(120, e('validation.tooLong')).optional()),
+    mobile: optionalMobileSchema,
+  })
+  .superRefine((v, ctx) => {
+    if (v.password !== v.passwordConfirm) ctx.addIssue({ code: 'custom', path: ['passwordConfirm'], message: 'validation.passwordMismatch' });
+  });
+
+export const residentLoginSchema = z.object({
+  username: villaNumberSchema,
+  password: z.string(e('validation.required')).min(1, e('validation.required')).max(256),
+  client: z.enum(CLIENT_KINDS).default('web'),
+});
+
+/** Residents may change only the villa's contact name and phone number. */
+export const villaContactSchema = z.object({
+  ownerName: z.preprocess(emptyToUndefined, z.string().trim().min(2, e('validation.invalid')).max(120, e('validation.tooLong')).optional()),
+  ownerMobile: optionalMobileSchema,
+});
+
+/** A resident registers an expected visitor; the visitor gets a QR for the gate. No approval needed. */
+export const inviteSchema = z.object({
+  fullName: z.string(e('validation.required')).trim().min(2, e('validation.invalid')).max(120, e('validation.tooLong')),
+  mobile: optionalMobileSchema,
+  expectedAt: z.iso.datetime({ offset: true, error: 'validation.invalidDate' }),
+});
+
+export const maintenanceCreateSchema = z.object({
+  category: z.enum(MAINTENANCE_CATEGORIES, e('validation.required')),
+  description: z.string(e('validation.required')).trim().min(5, e('validation.reasonLength')).max(1000, e('validation.tooLong')),
+});
+
+export const maintenanceUpdateSchema = z.object({
+  status: z.enum(MAINTENANCE_STATUSES),
+  adminNote: z.string().trim().max(500, e('validation.tooLong')).optional().nullable(),
+});
+
+export const residentDecisionSchema = z.object({ action: z.enum(['approve', 'reject', 'disable', 'enable']) });
+export const residentPasswordResetSchema = z.object({ password: passwordSchema });
+
 /** The administrator's decision; corrected values replace what the visitor typed. */
 export const arrivalApproveSchema = (opts: SchemaOptions = {}) =>
   z
@@ -457,22 +526,6 @@ export const gateSchema = z.object({
 });
 export const gateUpdateSchema = gateSchema.partial().extend({ regenerateCode: z.boolean().optional() });
 
-/** Optional phone number in any common format, stored as E.164. */
-const optionalMobileSchema = z
-  .string()
-  .trim()
-  .max(32)
-  .nullable()
-  .optional()
-  .transform((v, ctx) => {
-    if (!v) return null;
-    const res = normalizePhone(v, 'SA');
-    if (!res.ok) {
-      ctx.addIssue({ code: 'custom', message: `validation.phone.${res.error}` });
-      return z.NEVER;
-    }
-    return res.e164;
-  });
 
 export const villaSchema = z.object({
   number: villaNumberSchema,

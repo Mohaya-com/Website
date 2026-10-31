@@ -265,12 +265,13 @@ function ExitPanel({ inside, gateId }: { inside: InsideNowDTO | undefined; gateI
     if (!inside) return [];
     const list: InsideItem[] = [
       ...inside.entries.map((e) => ({
+        // Everything in the inside list has been entered.
         key: `e-${e.id}`,
         kind: 'entry' as const,
         id: e.id,
         name: e.fullName ?? (e.documentNumber ? `${t('gate.unnamed')} · ${e.documentNumber}` : t('gate.unnamed')),
         villaNumber: e.villaNumber,
-        enteredAt: e.enteredAt,
+        enteredAt: e.enteredAt ?? '',
         entry: e,
       })),
       ...inside.visits.map((v) => ({ key: `v-${v.id}`, kind: 'visit' as const, id: v.id, name: v.fullName, villaNumber: v.villaNumber, enteredAt: v.checkedInAt })),

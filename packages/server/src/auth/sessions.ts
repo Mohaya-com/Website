@@ -1,5 +1,5 @@
 import { and, eq, isNull, ne } from 'drizzle-orm';
-import { otpChallenges, sessions, users, visitors, type DbExecutor, type Session } from '@vms/db';
+import { otpChallenges, residents, sessions, users, villas, visitors, type DbExecutor, type Session } from '@vms/db';
 import {
   PERMISSIONS,
   maskDocumentNumber,
@@ -20,6 +20,7 @@ export interface NewSession {
   userId?: string;
   visitorId?: string;
   otpChallengeId?: string;
+  residentId?: string;
   client: ClientKind;
   userAgent?: string | null;
 }
@@ -32,7 +33,7 @@ function lifetimes(ctx: ServerContext, kind: Session['kind'], now: Date) {
       max: new Date(now.getTime() + s.staffMaxDays * 86_400_000),
     };
   }
-  if (kind === 'visitor') {
+  if (kind === 'visitor' || kind === 'resident') {
     const max = new Date(now.getTime() + s.visitorMaxDays * 86_400_000);
     return { idle: max, max };
   }
@@ -52,6 +53,7 @@ export async function createSession(ctx: ServerContext, tx: DbExecutor, input: N
       userId: input.userId ?? null,
       visitorId: input.visitorId ?? null,
       otpChallengeId: input.otpChallengeId ?? null,
+      residentId: input.residentId ?? null,
       client: input.client,
       userAgent: input.userAgent?.slice(0, 200) ?? null,
       createdAt: now,
@@ -79,6 +81,25 @@ export async function resolveSession(ctx: ServerContext, token: string | null | 
     const [visitor] = await ctx.db.select().from(visitors).where(eq(visitors.id, session.visitorId)).limit(1);
     if (!visitor) return null;
     principal = { kind: 'visitor', role: 'visitor', sessionId: session.id, visitorId: visitor.id, visitor, locale: visitor.locale, expiresAt: session.expiresAt };
+  } else if (session.kind === 'resident' && session.residentId) {
+    const [row] = await ctx.db
+      .select({ resident: residents, villaNumber: villas.number })
+      .from(residents)
+      .innerJoin(villas, eq(villas.id, residents.villaId))
+      .where(eq(residents.id, session.residentId))
+      .limit(1);
+    if (!row || row.resident.status !== 'active') return null;
+    principal = {
+      kind: 'resident',
+      role: 'resident',
+      sessionId: session.id,
+      residentId: row.resident.id,
+      resident: row.resident,
+      villaId: row.resident.villaId,
+      villaNumber: row.villaNumber,
+      locale: row.resident.locale,
+      expiresAt: session.expiresAt,
+    };
   } else if (session.kind === 'registrant' && session.otpChallengeId) {
     const [challenge] = await ctx.db.select().from(otpChallenges).where(eq(otpChallenges.id, session.otpChallengeId)).limit(1);
     if (!challenge || !challenge.verifiedAt) return null;
@@ -117,6 +138,10 @@ export function toSessionInfo(principal: Principal, now: Date, tz: string): Sess
   const base = { role: principal.role, permissions: permissionsFor(principal), expiresAt: principal.expiresAt.toISOString() };
   if (principal.kind === 'staff') return { ...base, kind: 'staff', user: toStaffUserDTO(principal.user) };
   if (principal.kind === 'visitor') return { ...base, kind: 'visitor', visitor: toVisitorSelfDTO(principal.visitor, now, tz) };
+  if (principal.kind === 'resident') {
+    const r = principal.resident;
+    return { ...base, kind: 'resident', resident: { id: r.id, villaId: r.villaId, villaNumber: principal.villaNumber, fullName: r.fullName, mobile: r.mobile } };
+  }
   return {
     ...base,
     kind: 'registrant',

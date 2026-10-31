@@ -22,7 +22,14 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number];
 export const STAFF_ROLES = ['admin', 'security'] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
-export type PrincipalRole = StaffRole | 'visitor' | 'registrant';
+export type PrincipalRole = StaffRole | 'visitor' | 'registrant' | 'resident';
+
+export const MAINTENANCE_CATEGORIES = ['plumbing', 'electrical', 'ac', 'carpentry', 'cleaning', 'other'] as const;
+export type MaintenanceCategory = (typeof MAINTENANCE_CATEGORIES)[number];
+export const MAINTENANCE_STATUSES = ['open', 'in_progress', 'done', 'cancelled'] as const;
+export type MaintenanceStatus = (typeof MAINTENANCE_STATUSES)[number];
+export const RESIDENT_STATUSES = ['pending', 'active', 'rejected', 'disabled'] as const;
+export type ResidentStatus = (typeof RESIDENT_STATUSES)[number];
 
 export const GATE_ACTIONS = ['entry', 'exit'] as const;
 export type GateAction = (typeof GATE_ACTIONS)[number];

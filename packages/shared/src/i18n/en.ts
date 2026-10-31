@@ -100,6 +100,7 @@ export const en: Messages = {
     security: 'Gate security',
     visitor: 'Visitor',
     registrant: 'New visitor',
+    resident: 'Resident',
   },
   status: {
     pending: 'Pending approval',

@@ -35,6 +35,8 @@ export const PERMISSIONS = {
   'arrivals.review': ['admin'],
   /** Record visitors at the gate with an ID photo and the villa, and record their exit. */
   'gate.quick_entry': ['admin', 'security'],
+  'residents.manage': ['admin'],
+  'maintenance.manage': ['admin'],
 } as const satisfies Record<string, readonly StaffRole[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

@@ -13,6 +13,7 @@ import {
   type OwnerConfirmationDTO,
   type QuickEntryCreatedDTO,
   type QuickEntryDTO,
+  type VisitorRecordDTO,
 } from '@vms/shared';
 import type { StaffPrincipal } from '../auth/principal';
 import type { RequestMeta } from '../auth/staff';
@@ -43,6 +44,10 @@ function ownerToken(ctx: ServerContext, entryId: string): string {
   return hmacBase64Url(ctx.config.passTokenSecret, `owner|${entryId}`);
 }
 
+export function ownerTokenFor(ctx: ServerContext, entryId: string): string {
+  return ownerToken(ctx, entryId);
+}
+
 export function ownerLink(ctx: ServerContext, entryId: string): string {
   return `${ctx.config.appOrigin}/v#${ownerToken(ctx, entryId)}`;
 }
@@ -50,7 +55,7 @@ export function ownerLink(ctx: ServerContext, entryId: string): string {
 const enteredBy = alias(users, 'entered_by');
 const exitedBy = alias(users, 'exited_by');
 
-function entryQuery(db: DbExecutor) {
+export function entryQuery(db: DbExecutor) {
   return db
     .select({
       e: quickEntries,
@@ -68,9 +73,9 @@ function entryQuery(db: DbExecutor) {
     .leftJoin(exitedBy, eq(exitedBy.id, quickEntries.exitedByUserId));
 }
 
-type EntryRow = Awaited<ReturnType<ReturnType<typeof entryQuery>['execute']>>[number];
+export type EntryRow = Awaited<ReturnType<ReturnType<typeof entryQuery>['execute']>>[number];
 
-function toDTO(row: EntryRow): QuickEntryDTO {
+export function toDTO(row: EntryRow): VisitorRecordDTO {
   const e = row.e;
   return {
     id: e.id,
@@ -83,16 +88,19 @@ function toDTO(row: EntryRow): QuickEntryDTO {
     fullName: e.fullName,
     nationality: e.nationality,
     hasImage: !!row.hasImage,
-    enteredAt: e.enteredAt.toISOString(),
+    enteredAt: e.enteredAt?.toISOString() ?? null,
     enteredBy: row.enteredByName ?? null,
     exitedAt: e.exitedAt?.toISOString() ?? null,
     exitedBy: row.exitedByName ?? null,
     ownerResponse: e.ownerResponse,
     ownerRespondedAt: e.ownerRespondedAt?.toISOString() ?? null,
+    expectedAt: e.expectedAt?.toISOString() ?? null,
+    visitorMobile: e.visitorMobile,
+    invitedByResident: !!e.invitedByResidentId,
   };
 }
 
-async function loadEntry(db: DbExecutor, id: string): Promise<QuickEntryDTO> {
+export async function loadEntry(db: DbExecutor, id: string): Promise<VisitorRecordDTO> {
   const [row] = await entryQuery(db).where(eq(quickEntries.id, id)).limit(1);
   if (!row) throw new ApiError(404, 'not_found');
   return toDTO(row);
@@ -108,7 +116,7 @@ export async function scanForGate(ctx: ServerContext, staff: StaffPrincipal, ima
 }
 
 /** Finds the villa by its number, adding new numbers to the list (administrators can disable wrong ones). */
-async function resolveVillaNumber(scope: TxScope, staff: StaffPrincipal, number: string): Promise<{ id: string; ownerMobile: string | null }> {
+export async function resolveVillaNumber(scope: TxScope, staff: StaffPrincipal, number: string): Promise<{ id: string; ownerMobile: string | null }> {
   const { tx, now } = scope;
   let [villa] = await tx.select().from(villas).where(eq(villas.number, number)).limit(1);
   if (!villa) {
@@ -133,7 +141,7 @@ export interface QuickEntryCreate {
   gateId?: string | null | undefined;
 }
 
-function whatsappUrl(mobile: string, text: string): string {
+export function whatsappUrl(mobile: string, text: string): string {
   return `https://wa.me/${mobile.replace(/^\+/, '')}?text=${encodeURIComponent(text)}`;
 }
 
@@ -161,6 +169,7 @@ export async function createQuickEntry(ctx: ServerContext, staff: StaffPrincipal
       enteredAt: scope.now,
       enteredByUserId: staff.userId,
       ownerTokenHash: sha256Hex(ownerToken(ctx, entryId)),
+      createdAt: scope.now,
     });
     await audit(scope.tx, {
       actor: { type: 'user', userId: staff.userId },
@@ -171,7 +180,7 @@ export async function createQuickEntry(ctx: ServerContext, staff: StaffPrincipal
       ipHash: meta.ipHash,
       at: scope.now,
     });
-    await publish(scope.tx, { t: 'gate' });
+    await publish(scope.tx, { t: 'gate', villaId: villa.id });
     return { id: entryId, ownerMobile: villa.ownerMobile };
   });
   const entry = await loadEntry(ctx.db, id);
@@ -240,7 +249,7 @@ export async function exitQuickEntry(ctx: ServerContext, staff: StaffPrincipal, 
     if (row.status === 'exited') return;
     await scope.tx.update(quickEntries).set({ status: 'exited', exitedAt: scope.now, exitedByUserId: staff.userId }).where(eq(quickEntries.id, id));
     await audit(scope.tx, { actor: { type: 'user', userId: staff.userId }, action: 'gate.quick_exit', entityType: 'quick_entry', entityId: id, at: scope.now });
-    await publish(scope.tx, { t: 'gate' });
+    await publish(scope.tx, { t: 'gate', villaId: row.villaId });
   });
   return loadEntry(ctx.db, id);
 }
@@ -263,7 +272,7 @@ export async function getOwnerConfirmation(ctx: ServerContext, token: string, me
     compoundName: settings.compoundNameAr,
     villaNumber: villa?.number ?? '',
     fullName: row.fullName,
-    enteredAt: row.enteredAt.toISOString(),
+    enteredAt: row.enteredAt?.toISOString() ?? null,
     status: row.status,
     response: row.ownerResponse,
   };
@@ -276,7 +285,7 @@ export async function respondAsOwner(ctx: ServerContext, token: string, response
   await inTransaction(ctx, async (scope) => {
     await scope.tx.update(quickEntries).set({ ownerResponse: response, ownerRespondedAt: scope.now }).where(eq(quickEntries.id, row.id));
     await audit(scope.tx, { actor: { type: 'system' }, action: `gate.owner_${response}`, entityType: 'quick_entry', entityId: row.id, ipHash: meta.ipHash, at: scope.now });
-    await publish(scope.tx, { t: 'gate' });
+    await publish(scope.tx, { t: 'gate', villaId: row.villaId });
   });
   return getOwnerConfirmation(ctx, token, meta);
 }

@@ -47,14 +47,23 @@ export interface StaffUserDTO {
   createdAt: string;
 }
 
+export interface ResidentSelfDTO {
+  id: string;
+  villaId: string;
+  villaNumber: string;
+  fullName: string | null;
+  mobile: string | null;
+}
+
 export interface SessionInfoDTO {
-  kind: 'staff' | 'visitor' | 'registrant';
+  kind: 'staff' | 'visitor' | 'registrant' | 'resident';
   role: PrincipalRole;
   permissions: Permission[];
   expiresAt: string;
   user?: StaffUserDTO;
   visitor?: VisitorSelfDTO;
   registrant?: { documentType: DocumentType; documentNumberMasked: string; mobileMasked: string };
+  resident?: ResidentSelfDTO;
 }
 
 export interface AuthResultDTO {
@@ -452,7 +461,7 @@ export type OwnerResponse = 'confirmed' | 'declined';
 /** A visitor recorded at the gate by security (photo + villa), entered automatically at the time of recording. */
 export interface QuickEntryDTO {
   id: string;
-  status: 'inside' | 'exited';
+  status: 'inside' | 'exited' | 'expected' | 'cancelled';
   villaNumber: string;
   villaHasOwnerContact: boolean;
   gate: GateRefDTO | null;
@@ -461,7 +470,8 @@ export interface QuickEntryDTO {
   fullName: string | null;
   nationality: string | null;
   hasImage: boolean;
-  enteredAt: string;
+  /** Empty while an invitation is still expected. */
+  enteredAt: string | null;
   enteredBy: string | null;
   exitedAt: string | null;
   exitedBy: string | null;
@@ -488,9 +498,71 @@ export interface OwnerConfirmationDTO {
   compoundName: string;
   villaNumber: string;
   fullName: string | null;
-  enteredAt: string;
-  status: 'inside' | 'exited';
+  enteredAt: string | null;
+  status: 'inside' | 'exited' | 'expected' | 'cancelled';
   response: OwnerResponse | null;
+}
+
+/** A resident's invitation for an expected visitor, or a visitor recorded at the gate for the villa. */
+export interface VisitorRecordDTO extends QuickEntryDTO {
+  expectedAt: string | null;
+  visitorMobile: string | null;
+  invitedByResident: boolean;
+}
+
+export interface InviteCreatedDTO {
+  invite: VisitorRecordDTO;
+  /** Page the visitor opens to show the QR at the gate. */
+  inviteLink: string;
+  /** wa.me link to send the invitation, when the visitor's mobile is known. */
+  whatsappUrl: string | null;
+}
+
+/** The visitor's view of an invitation (opened from the link the resident shares). */
+export interface InvitePassDTO {
+  compoundName: string;
+  villaNumber: string;
+  fullName: string | null;
+  expectedAt: string | null;
+  status: 'expected' | 'inside' | 'exited' | 'cancelled';
+  qrValue: string;
+}
+
+/** What the gate sees after typing a villa number. */
+export interface GateVillaDTO {
+  villa: { id: string; number: string; ownerName: string | null; ownerMobile: string | null; isActive: boolean } | null;
+  /** Invitations for this villa that are still expected (newest window first). */
+  expected: VisitorRecordDTO[];
+}
+
+/** Result of scanning a QR at the gate. */
+export type GateQrResultDTO =
+  | { kind: 'invite'; entry: VisitorRecordDTO; alreadyInside: boolean }
+  | { kind: 'pass' }
+  | { kind: 'identity'; documentNumber: string; documentType: DocumentType }
+  | { kind: 'unknown' };
+
+export interface ResidentAdminDTO {
+  id: string;
+  villaNumber: string;
+  fullName: string | null;
+  mobile: string | null;
+  status: 'pending' | 'active' | 'rejected' | 'disabled';
+  createdAt: string;
+  decidedAt: string | null;
+  lastLoginAt: string | null;
+}
+
+export interface MaintenanceDTO {
+  id: string;
+  reference: string;
+  villaNumber: string;
+  category: 'plumbing' | 'electrical' | 'ac' | 'carpentry' | 'cleaning' | 'other';
+  description: string;
+  status: 'open' | 'in_progress' | 'done' | 'cancelled';
+  adminNote: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PublicConfigDTO {
