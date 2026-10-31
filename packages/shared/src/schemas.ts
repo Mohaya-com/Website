@@ -426,8 +426,12 @@ export const villaContactSchema = z.object({
 });
 
 /** A resident registers an expected visitor; the visitor gets a QR for the gate. No approval needed. */
+/** A resident's visit request: the visitor's ID photo is required; its details are read from it or typed. */
 export const inviteSchema = z.object({
+  idImage: idImageSchema,
   fullName: z.string(e('validation.required')).trim().min(2, e('validation.invalid')).max(120, e('validation.tooLong')),
+  documentKind: z.enum(DOCUMENT_KINDS).optional().nullable(),
+  documentNumber: quickEntrySchema.shape.documentNumber,
   mobile: optionalMobileSchema,
   expectedAt: z.iso.datetime({ offset: true, error: 'validation.invalidDate' }),
 });

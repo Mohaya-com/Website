@@ -10,7 +10,7 @@ import { ConnectivityBanner, DemoBanner, LanguageSwitcher, Logo, SkipLink } from
 export function PublicShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const { t } = useI18n();
   return (
-    <div className="flex min-h-dvh flex-col bg-[radial-gradient(1200px_600px_at_100%_-10%,#dfe8f5_0%,transparent_60%),radial-gradient(900px_500px_at_-10%_110%,#cdf2ec_0%,transparent_55%)]">
+    <div className="flex min-h-dvh flex-col bg-[radial-gradient(1200px_600px_at_100%_-10%,var(--color-navy-100)_0%,transparent_60%),radial-gradient(900px_500px_at_-10%_110%,var(--color-teal-100)_0%,transparent_55%)]">
       <SkipLink />
       <ConnectivityBanner />
       <DemoBanner />

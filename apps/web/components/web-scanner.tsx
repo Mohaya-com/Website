@@ -135,7 +135,7 @@ export function WebScanner({ onDetect, paused }: { onDetect: (value: string) => 
 
   return (
     <div className="space-y-3">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-navy-950">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-black">
         <video ref={videoRef} playsInline muted className={`size-full object-cover ${state === 'running' ? '' : 'invisible'}`} />
         {state === 'running' && (
           <>

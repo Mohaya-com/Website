@@ -1,7 +1,7 @@
 'use client';
 
-import { BriefcaseBusiness, CalendarDays, Ellipsis, Package, Users, Wrench } from 'lucide-react';
-import { useId, useMemo } from 'react';
+import { BriefcaseBusiness, CalendarDays, ChevronDown, Ellipsis, List, Package, Users, Wrench } from 'lucide-react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   DURATION_PRESETS_MINUTES,
@@ -207,18 +207,39 @@ export function useVillaOptions() {
   return useQuery({ queryKey: ['villa-options'], queryFn: () => api<{ items: VillaDTO[] }>('/villas/options'), staleTime: 5 * 60_000 });
 }
 
-/** Free-text villa number (Arabic digits accepted); suggests numbers already on file. */
+/** Villa number: typed by hand (Arabic digits accepted) or picked from the villas on file. */
 export function VillaNumberInput({ value, onChange, error, large }: { value: string; onChange: (v: string) => void; error?: string | null; large?: boolean }) {
   const { t } = useI18n();
   const { data } = useVillaOptions();
-  const listId = useId();
+  const villas = data?.items ?? [];
   return (
     <Field label={t('fields.villa')} required error={error} hint={t('request.villaNumberHint')}>
       {(a) => (
-        <>
-          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} list={listId} className={cn('ltr-nums font-semibold', large ? 'h-16 text-3xl tracking-wider' : 'text-lg')} value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
-          <datalist id={listId}>{data?.items.map((v) => <option key={v.id} value={v.number} />)}</datalist>
-        </>
+        <div className="flex gap-2">
+          <Input {...a} dir="ltr" inputMode="text" autoComplete="off" maxLength={20} className={cn('ltr-nums min-w-0 flex-1 font-semibold', large ? 'h-16 text-3xl tracking-wider' : 'text-lg')} value={value} onChange={(e) => onChange(normalizeDigits(e.target.value))} />
+          {villas.length > 0 && (
+            // A native select keeps the platform picker (wheel on iPhone, list on Android).
+            <label className={cn('relative flex shrink-0 cursor-pointer items-center gap-1.5 rounded-xl border border-line bg-white px-3 font-semibold text-teal-700 shadow-sm hover:bg-teal-50', large ? 'h-16' : 'h-12')}>
+              <List className="size-5" aria-hidden />
+              <span className="text-sm">{t('gate.villaPick')}</span>
+              <ChevronDown className="size-4" aria-hidden />
+              <select
+                aria-label={t('gate.villaPick')}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                value=""
+                onChange={(e) => e.target.value && onChange(e.target.value)}
+              >
+                <option value="">{t('gate.villaPick')}</option>
+                {villas.map((v) => (
+                  <option key={v.id} value={v.number}>
+                    {v.number}
+                    {v.label ? ` — ${v.label}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
       )}
     </Field>
   );

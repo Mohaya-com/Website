@@ -55,6 +55,7 @@ export const NOTIFICATION_TYPES = [
   'visit_checked_out',
   'visit_overdue',
   'visit_replaced',
+  'invite_created',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 

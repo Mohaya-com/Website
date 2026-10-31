@@ -1,36 +1,46 @@
 @import 'tailwindcss';
 
+/*
+ * Concierge: a hotel lobby, not a checkpoint. The "navy" scale is palm green (brand, actions) and the
+ * "teal" scale is brass (the one warm highlight); both names are kept so every page restyles at once.
+ * Evening (dark) values follow below and invert every scale the pages use.
+ */
 @theme {
-  --font-sans: 'Cairo Variable', 'Cairo', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  --font-display: 'El Messiri', 'IBM Plex Sans Arabic', Georgia, serif;
 
-  --color-navy-950: #061224;
-  --color-navy-900: #0b1f3a;
-  --color-navy-800: #12305a;
-  --color-navy-700: #1a4073;
-  --color-navy-600: #24528f;
-  --color-navy-500: #3a6bb0;
-  --color-navy-200: #c3d3ea;
-  --color-navy-100: #dfe8f5;
-  --color-navy-50: #eef3fa;
+  --color-navy-950: #13251a;
+  --color-navy-900: #22412f;
+  --color-navy-800: #2f5a41;
+  --color-navy-700: #3b6b4f;
+  --color-navy-600: #4d7f61;
+  --color-navy-500: #6a967b;
+  --color-navy-200: #c9d8cc;
+  --color-navy-100: #e2ebe3;
+  --color-navy-50: #f0f4ef;
 
-  --color-teal-800: #0a5f57;
-  --color-teal-700: #0b766b;
-  --color-teal-600: #0e8f81;
-  --color-teal-500: #14ad9c;
-  --color-teal-200: #a6e6dd;
-  --color-teal-100: #cdf2ec;
-  --color-teal-50: #e9f8f6;
+  --color-teal-800: #6e4f2c;
+  --color-teal-700: #85603a;
+  --color-teal-600: #a57c4d;
+  --color-teal-500: #b88f5e;
+  --color-teal-400: #c9a77d;
+  --color-teal-300: #dcc3a1;
+  --color-teal-200: #e9d8bf;
+  --color-teal-100: #f3e9da;
+  --color-teal-50: #faf5ec;
 
-  --color-canvas: #f3f5f9;
-  --color-surface: #ffffff;
-  --color-line: #e1e7ef;
-  --color-line-strong: #c9d3e0;
-  --color-ink: #0f1b2d;
-  --color-muted: #52637a;
+  --color-canvas: #f6f5ef;
+  --color-surface: #fffefa;
+  --color-white: #fffefa;
+  --color-line: #e3e3d8;
+  --color-line-strong: #cbcdbd;
+  --color-ink: #1d2a22;
+  --color-muted: #5e6857;
+  --color-sidebar: #1c3526;
 
-  --radius-card: 1rem;
-  --shadow-card: 0 1px 2px rgb(15 27 45 / 0.04), 0 6px 20px rgb(15 27 45 / 0.05);
-  --shadow-raised: 0 12px 40px rgb(15 27 45 / 0.16);
+  --radius-card: 1.125rem;
+  --shadow-card: 0 1px 2px rgb(29 42 34 / 0.05), 0 10px 28px -14px rgb(29 42 34 / 0.22);
+  --shadow-raised: 0 18px 44px -12px rgb(29 42 34 / 0.3);
 
   --animate-fade-in: fade-in 180ms ease-out both;
   --animate-slide-up: slide-up 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -66,6 +76,111 @@
   }
 }
 
+
+/* Evening: follows the phone's dark mode. Each scale is mirrored so light-on-dark keeps the same roles. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-navy-950: #e6f0e8;
+    --color-navy-900: #9cc7a9;
+    --color-navy-800: #b4d6be;
+    --color-navy-700: #c3dfcb;
+    --color-navy-600: #a7c9b0;
+    --color-navy-500: #7fa98b;
+    --color-navy-200: #34503f;
+    --color-navy-100: #26392d;
+    --color-navy-50: #1c2a21;
+    --color-teal-800: #ead0a8;
+    --color-teal-700: #dfbb8c;
+    --color-teal-600: #d1a774;
+    --color-teal-500: #c49a68;
+    --color-teal-400: #a48356;
+    --color-teal-300: #7d6242;
+    --color-teal-200: #5a4730;
+    --color-teal-100: #3a2f1f;
+    --color-teal-50: #2a2318;
+    --color-canvas: #111813;
+    --color-surface: #18221c;
+    --color-white: #18221c;
+    --color-line: #2a372f;
+    --color-line-strong: #3b4a40;
+    --color-ink: #ebeee6;
+    --color-muted: #a3ac9f;
+    --color-sidebar: #0c120e;
+    --color-slate-50: #1b241e;
+    --color-slate-100: #222c26;
+    --color-slate-200: #2e3a33;
+    --color-slate-300: #44524a;
+    --color-slate-400: #66756c;
+    --color-slate-500: #8b998f;
+    --color-slate-600: #a9b5ad;
+    --color-slate-700: #c5cec8;
+    --color-gray-100: #222c26;
+    --color-gray-200: #2e3a33;
+    --color-gray-700: #c5cec8;
+    --color-red-50: #33201c;
+    --color-red-100: #432621;
+    --color-red-200: #643127;
+    --color-red-300: #8f4334;
+    --color-red-400: #c4614c;
+    --color-red-500: #e07a63;
+    --color-red-600: #ec8f7c;
+    --color-red-700: #f2a596;
+    --color-red-800: #f6bdb2;
+    --color-red-900: #fad3cb;
+    --color-emerald-50: #1b3024;
+    --color-emerald-200: #2f5a40;
+    --color-emerald-600: #6cc191;
+    --color-emerald-700: #7fcf9f;
+    --color-emerald-800: #9ddbb5;
+    --color-emerald-900: #bfe9cf;
+    --color-amber-50: #30271a;
+    --color-amber-100: #3b301d;
+    --color-amber-200: #5a4626;
+    --color-amber-300: #7d6232;
+    --color-amber-400: #d9aa55;
+    --color-amber-600: #e2b366;
+    --color-amber-700: #ebc684;
+    --color-amber-800: #f1d6a3;
+    --color-amber-900: #f6e4c2;
+    --color-blue-50: #1d2534;
+    --color-blue-200: #34415a;
+    --color-blue-700: #a9bde6;
+    --color-blue-800: #c3d2f0;
+    --color-orange-50: #33241a;
+    --color-orange-200: #5c3d26;
+    --color-orange-800: #f1c39d;
+    --color-violet-50: #272034;
+    --color-violet-100: #312846;
+    --color-violet-200: #463864;
+    --color-violet-900: #ddd0f5;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 30px -16px rgb(0 0 0 / 0.7);
+    --shadow-raised: 0 18px 44px -12px rgb(0 0 0 / 0.75);
+  }
+  /* Surfaces that stay in day colours: the sidebar, QR codes and printed sheets. */
+  .theme-day {
+    color-scheme: light;
+    --color-navy-950: #13251a;
+    --color-navy-900: #22412f;
+    --color-navy-800: #2f5a41;
+    --color-navy-700: #3b6b4f;
+    --color-navy-200: #c9d8cc;
+    --color-navy-100: #e2ebe3;
+    --color-navy-50: #f0f4ef;
+    --color-teal-200: #e9d8bf;
+    --color-teal-600: #a57c4d;
+    --color-white: #fffefa;
+    --color-ink: #1d2a22;
+    --color-muted: #5e6857;
+    --color-line: #e3e3d8;
+    --color-amber-400: #fbbf24;
+  }
+  .skeleton {
+    background: linear-gradient(90deg, #1f2a23 25%, #26332b 37%, #1f2a23 63%);
+    background-size: 400% 100%;
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -75,8 +190,15 @@
     background: var(--color-canvas);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    line-height: 1.6;
+    line-height: 1.65;
     min-height: 100dvh;
+  }
+  /* Headings in the calligraphic display face. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0;
   }
   :focus-visible {
     outline: 3px solid var(--color-teal-500);
@@ -128,7 +250,7 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #e9eef5 25%, #f4f7fb 37%, #e9eef5 63%);
+  background: linear-gradient(90deg, #ebebe2 25%, #f4f3ec 37%, #ebebe2 63%);
   background-size: 400% 100%;
   animation: shimmer 1.4s ease infinite;
 }
@@ -145,14 +267,14 @@
   position: absolute;
   inset: 12%;
   border-radius: 1.25rem;
-  box-shadow: 0 0 0 9999px rgb(6 18 36 / 0.45);
-  outline: 3px solid rgb(20 173 156 / 0.9);
+  box-shadow: 0 0 0 9999px rgb(10 16 12 / 0.5);
+  outline: 3px solid rgb(201 167 125 / 0.95);
 }
 .scan-line {
   position: absolute;
   inset-inline: 14%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, #14ad9c, transparent);
+  background: linear-gradient(90deg, transparent, #c9a77d, transparent);
   animation: scanline 2.2s ease-in-out infinite;
 }
 @keyframes scanline {

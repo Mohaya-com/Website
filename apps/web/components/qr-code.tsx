@@ -29,7 +29,7 @@ export function QrCode({ value, size = 240, label, className }: { value: string;
       style={{ direction: 'ltr' }}
     >
       <rect width={dimension} height={dimension} fill="#fff" />
-      <path d={path} fill="#0b1f3a" />
+      <path d={path} fill="#13251a" />
     </svg>
   );
 }

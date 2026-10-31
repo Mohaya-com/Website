@@ -3,9 +3,6 @@
 import {
   Building2,
   ClipboardCheck,
-  DoorClosed,
-  DoorOpen,
-  ListChecks,
   History,
   Home,
   IdCard,
@@ -13,11 +10,9 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  ScanLine,
   ScrollText,
   Settings,
   ShieldCheck,
-  UserPlus,
   UserRoundSearch,
   Users,
   Wrench,
@@ -46,11 +41,9 @@ interface NavItem {
 
 const OPERATIONS: NavItem[] = [
   { href: '/staff', label: 'nav.dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/staff/gate', label: 'nav.gate', icon: DoorClosed, permission: 'gate.quick_entry' },
-  { href: '/staff/gate/history', label: 'nav.gateHistory', icon: ListChecks, permission: 'gate.quick_entry' },
   { href: '/staff/arrivals', label: 'nav.arrivals', icon: IdCard, permission: 'arrivals.review', badge: 'arrivals' },
   { href: '/staff/requests', label: 'nav.requests', icon: ClipboardCheck, permission: 'visits.approve', badge: 'pending' },
-  { href: '/staff/visits', label: 'nav.visits', icon: History, permission: 'visits.read_history' },
+  { href: '/staff/visits', label: 'nav.visits', icon: History, permission: 'gate.quick_entry' },
   { href: '/staff/visitors', label: 'nav.visitors', icon: UserRoundSearch, permission: 'visitors.search' },
   { href: '/staff/log', label: 'nav.log', icon: ScrollText, permission: 'gate_log.read' },
 ];
@@ -84,7 +77,7 @@ function NavLinks({ items, role, onNavigate, summary, arrivalsPending }: { items
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'group flex h-11 items-center gap-3 rounded-xl px-3 text-[15px] font-semibold transition-colors',
-                  active ? 'bg-white/12 text-white shadow-[inset_3px_0_0_#14ad9c] rtl:shadow-[inset_-3px_0_0_#14ad9c]' : 'text-navy-100 hover:bg-white/8 hover:text-white',
+                  active ? 'bg-white/12 text-white shadow-[inset_3px_0_0_#c9a77d] rtl:shadow-[inset_-3px_0_0_#c9a77d]' : 'text-navy-100 hover:bg-white/8 hover:text-white',
                 )}
               >
                 <Icon className={cn('size-5 shrink-0', active ? 'text-teal-200' : 'text-navy-200 group-hover:text-white')} aria-hidden />
@@ -115,7 +108,7 @@ function Sidebar({ session, onNavigate }: { session: SessionInfoDTO; onNavigate?
   });
   const showManagement = MANAGEMENT.some((i) => !i.permission || hasPermission(session.role, i.permission));
   return (
-    <div className="flex h-full flex-col bg-navy-900 text-white">
+    <div className="theme-day flex h-full flex-col bg-sidebar text-white">
       <div className="px-5 pb-4 pt-5">
         <Logo inverted />
       </div>
@@ -164,7 +157,7 @@ export function StaffShell({ initialSession, children }: { initialSession: Sessi
       </aside>
       {drawer && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label={t('common.more')}>
-          <button type="button" className="absolute inset-0 bg-navy-950/50 animate-fade-in" onClick={() => setDrawer(false)} aria-label={t('common.close')} />
+          <button type="button" className="absolute inset-0 bg-black/50 animate-fade-in" onClick={() => setDrawer(false)} aria-label={t('common.close')} />
           <div className="absolute inset-y-0 start-0 w-[min(300px,85vw)] animate-slide-up shadow-raised">
             <Sidebar session={session} onNavigate={() => setDrawer(false)} />
           </div>

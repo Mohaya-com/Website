@@ -15,7 +15,7 @@ export type RealtimeEvent =
   | { t: 'notification'; userId?: string; visitorId?: string }
   | { t: 'config' }
   | { t: 'arrival' }
-  | { t: 'gate'; villaId?: string }
+  | { t: 'gate'; villaId?: string; /** Set when a visitor has just entered for this villa (their name, or empty). */ entered?: string }
   | { t: 'residents' }
   | { t: 'maintenance'; villaId?: string };
 

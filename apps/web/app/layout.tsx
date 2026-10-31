@@ -1,4 +1,10 @@
-import '@fontsource-variable/cairo';
+import '@fontsource/ibm-plex-sans-arabic/400.css';
+import '@fontsource/ibm-plex-sans-arabic/500.css';
+import '@fontsource/ibm-plex-sans-arabic/600.css';
+import '@fontsource/ibm-plex-sans-arabic/700.css';
+import '@fontsource/el-messiri/500.css';
+import '@fontsource/el-messiri/600.css';
+import '@fontsource/el-messiri/700.css';
 import './globals.css';
 import type { Metadata, Viewport } from 'next';
 import { cookies } from 'next/headers';
@@ -14,7 +20,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0b1f3a',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f6f5ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#111813' },
+  ],
   width: 'device-width',
   initialScale: 1,
 };

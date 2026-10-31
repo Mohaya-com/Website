@@ -268,25 +268,28 @@ Clear messages cover every outcome: pending, rejected, cancelled, expired, too e
 
 ## Gate quick entry (security)
 
-The main workflow at the gate. Security staff land on **Gate** (`/staff`, also `/staff/gate`, permission `gate.quick_entry`). One page with three tabs replaces the separate register-visitor and scan pages:
+The main workflow at the gate. The staff dashboard (`/staff`, permission `gate.quick_entry`) is the gate screen. Administrators also see their figures and approval queue below it. It has two large actions and the full-width list of everyone inside:
 
-- **Entry:** photograph the ID, Iqama or passport, type the villa number, and press *Record entry*. The date and time are recorded automatically, the visitor goes straight to the inside list, and no approval is needed.
-  - As soon as the villa number is typed, the villa card shows the owner's name and phone (tap to call) and any visitors the resident is expecting, each with a *Check in* button.
+- **New visitor:** photograph the ID, Iqama or passport, enter the villa number, and press *Record entry*. The date and time are recorded automatically, the visitor goes straight to the inside list, and no approval is needed.
+  - The villa number is typed by hand or picked from the villas on file. A native select is used, so phones show their own picker.
+  - As soon as the villa number is entered, the villa card shows the owner's name and phone (tap to call) and any visitors the resident is expecting, each with a *Check in* button.
+  - The name and identity number read from the photo fill visible, editable fields. If the name was not read, the guard is told to type it.
   - Passports are read from the machine-readable zone (ICAO 9303 TD3). Check digits are verified, so a misread line is never accepted.
-  - Saudi ID and Iqama cards are read with Tesseract (Arabic and English models). The number is accepted only with a valid check digit; the name only when it sits next to a printed label. Tesseract does not read Arabic-Indic digits reliably, so on Arabic-only cards the number may need typing. For those cards, set the optional Claude reader below.
+  - Saudi ID and Iqama cards are read with Tesseract (Arabic and English models). The number is accepted only with a valid check digit. The name is taken from a labelled line, or else from a line shaped like a name (Saudi ID cards print it without a label). Tesseract does not read Arabic-Indic digits reliably, so on Arabic-only cards the number may need typing. For those cards, set the optional Claude reader below.
   - The photo is always stored with the entry.
-- **QR:** scan with the camera or paste the text.
-  - A resident's invitation (`/i#token`) checks the visitor in at once.
-  - A visit pass opens the pass check.
-  - Any other code that contains a 10-digit number with a valid check digit (for example the text of a digital ID) fills the identity number on the entry tab.
+- **Check in a registered visitor:** scan the visitor's QR with the camera, or paste its text.
+  - A resident's invitation (`/i#token`) or an approved visit pass is checked in at once (for a pass: verify, then confirm with no extra step).
+  - The guard then gets a WhatsApp button that tells the villa owner the visitor has entered. A resident with the portal open sees a live "your visitor has arrived" notice.
+  - Any other code that contains a 10-digit number with a valid check digit opens *New visitor* with the number filled.
   - Signed Absher / Tawakkalna digital-ID codes cannot be verified without an official integration, so the guard is told to photograph the card instead.
 - **Owner confirmation (optional):**
   - If the villa has an owner mobile, the guard gets a `wa.me` link with a ready message. It opens WhatsApp on the guard's phone, so no messaging provider is needed.
   - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner confirms or declines.
   - Residents with an account also confirm from their portal.
   - The answer appears live next to the visitor.
-- **Inside:** lists everyone inside, covering quick entries, checked-in invitations and visits checked in with a pass. Tapping a name and confirming records the exit time.
-- **History:** *Gate log* (`/staff/gate/history`) shows entries and exits, who recorded them, and the owner's response.
+- **Approved upcoming / completed today:** below the inside list, the dashboard lists residents' visit requests and approved passes still to come, and the visits that ended today. Each opens a details page (`/staff/entries/:id`) with the ID photo, the visitor's details, the villa owner, and the entry and exit times and who recorded them. Visitors registered by a resident move inside only when their QR is scanned at the gate; there is no manual check-in button.
+- **Inside:** lists everyone inside, covering quick entries, checked-in invitations and visits checked in with a pass. The icon beside each name records the exit: tap it, then *Confirm exit*.
+- **Visit log:** *Visit log* (`/staff/visits`) shows every gate entry and exit, who recorded it, and the owner's response. The former *Gate log* page redirects here. Administrators also get a *Pass visits* tab.
 - **Privacy:** photos are served only to staff with `no-store` and deleted 30 days after exit. Every action is audited. Owner contact details are shown only to gate staff and administrators, never in the villa options visitors can read.
 - Arabic guide: [deploy/GATE.ar.md](deploy/GATE.ar.md).
 
@@ -309,7 +312,7 @@ Villa residents have their own interface at `/resident`. They sign in from the *
   - Sign-in failures lock the account temporarily, like staff accounts.
 - **Pages:**
   - *Visitors*: upcoming, inside now, and past.
-  - *Invite*: the resident enters the visitor's name, optional mobile and expected time, and gets a QR pass link (`/i#token`) to share by WhatsApp. The guard scans it to check the visitor in.
+  - *Register visitor*: the resident attaches a photo of the visitor's ID, Iqama or passport (required). The name and number are read from it (`/resident/scan`) and can be edited or typed. The visit is approved at once, gate staff and administrators get an `invite_created` notification, and the resident gets a QR pass link (`/i#token`) to share by WhatsApp. The guard scans it to check the visitor in.
   - *Confirmations*: confirm or decline visitors the gate recorded for the villa.
   - *Maintenance*: plumbing, electrical, AC, carpentry, cleaning or other requests. Administrators handle them under **Maintenance** (`maintenance.manage`).
   - *Villa*: edit the owner name and phone only.

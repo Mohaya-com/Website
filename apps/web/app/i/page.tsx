@@ -43,16 +43,17 @@ function InvitePass() {
   const d = q.data;
   return (
     <div className="mx-auto max-w-sm overflow-hidden rounded-3xl border border-line bg-white shadow-raised animate-pop">
-      <div className="bg-navy-900 px-6 pb-5 pt-6 text-center text-white">
-        <p className="text-sm font-semibold text-teal-200">{d.compoundName}</p>
-        <p className="mt-1 text-lg font-extrabold">{t('invitePass.title')}</p>
-        {d.fullName && <p className="mt-1 font-bold">{d.fullName}</p>}
+      {/* A personal welcome from the compound rather than a permit. */}
+      <div className="border-b border-line bg-navy-50 px-6 pb-5 pt-6 text-center">
+        <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">{d.compoundName}</p>
+        <h1 className="mt-2 text-2xl font-bold text-navy-900">{d.fullName ? t('invitePass.welcome', { name: d.fullName.split(' ')[0]! }) : t('invitePass.welcomeGeneric')}</h1>
+        <p className="mt-1 text-muted">{t('invitePass.hostWaiting', { villa: d.villaNumber })}</p>
       </div>
       <div className="space-y-4 p-6 text-center">
         {d.status === 'expected' ? (
           <>
             <div className="flex justify-center">
-              <div className="rounded-2xl border border-line p-3">
+              <div className="theme-day rounded-2xl border border-line bg-white p-3">
                 <QrCode value={d.qrValue} size={240} label={t('invitePass.show')} />
               </div>
             </div>

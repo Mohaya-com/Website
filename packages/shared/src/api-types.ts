@@ -481,7 +481,7 @@ export interface QuickEntryDTO {
 
 /** Returned when an entry is recorded: how to ask the villa owner to confirm. */
 export interface QuickEntryCreatedDTO {
-  entry: QuickEntryDTO;
+  entry: VisitorRecordDTO;
   ownerLink: string;
   /** wa.me link with a ready message, when the villa has an owner mobile number. */
   ownerWhatsappUrl: string | null;
@@ -491,6 +491,25 @@ export interface QuickEntryCreatedDTO {
 export interface InsideNowDTO {
   entries: QuickEntryDTO[];
   visits: { id: string; reference: string; fullName: string; villaNumber: string; checkedInAt: string }[];
+}
+
+/** One row of the gate board: a resident's invitation / gate entry, or a visit made with a pass. */
+export interface GateBoardItemDTO {
+  kind: 'entry' | 'visit';
+  id: string;
+  fullName: string | null;
+  villaNumber: string;
+  /** Expected arrival (upcoming) or exit time (completed). */
+  at: string | null;
+  enteredAt: string | null;
+  hasImage: boolean;
+}
+
+export interface GateBoardDTO {
+  /** Approved visits not yet at the gate: residents' requests and approved passes. */
+  upcoming: GateBoardItemDTO[];
+  /** Visits that ended today (compound time). */
+  completedToday: GateBoardItemDTO[];
 }
 
 /** What the villa owner sees through the confirmation link. */

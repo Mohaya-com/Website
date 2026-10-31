@@ -16,9 +16,9 @@ export function Logo({ compact = false, inverted = false }: { compact?: boolean;
   return (
     <span className="flex items-center gap-2.5">
       <svg viewBox="0 0 64 64" className="size-10 shrink-0" aria-hidden>
-        <rect width="64" height="64" rx="16" fill={inverted ? '#ffffff' : '#0b1f3a'} />
-        <path d="M18 46V26l14-10 14 10v20" fill="none" stroke={inverted ? '#0b1f3a' : '#fff'} strokeWidth="4" strokeLinejoin="round" />
-        <path d="M27 46V35h10v11" fill="none" stroke="#14ad9c" strokeWidth="4" strokeLinejoin="round" />
+        <rect width="64" height="64" rx="16" fill={inverted ? '#fffefa' : '#22412f'} />
+        <path d="M18 46V26l14-10 14 10v20" fill="none" stroke={inverted ? '#22412f' : '#fffefa'} strokeWidth="4" strokeLinejoin="round" />
+        <path d="M27 46V35h10v11" fill="none" stroke="#c9a77d" strokeWidth="4" strokeLinejoin="round" />
       </svg>
       {!compact && (
         <span className="min-w-0 leading-tight">

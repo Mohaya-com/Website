@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { gateEvents, gates, quickEntries, users, villas, visitors, visits, type DbExecutor, type QuickEntry } from '@vms/db';
 import {
@@ -6,8 +6,11 @@ import {
   hasPermission,
   maskDocumentNumber,
   zonedDateString,
+  zonedDateTimeToUtc,
   type ArrivalScanResultDTO,
   type DocumentKind,
+  type GateBoardDTO,
+  type GateBoardItemDTO,
   type InsideNowDTO,
   type OwnerConfirmationDTO,
   type QuickEntryCreatedDTO,
@@ -178,7 +181,7 @@ export async function createQuickEntry(ctx: ServerContext, staff: StaffPrincipal
       ipHash: meta.ipHash,
       at: scope.now,
     });
-    await publish(scope.tx, { t: 'gate', villaId: villa.id });
+    await publish(scope.tx, { t: 'gate', villaId: villa.id, entered: input.fullName ?? '' });
     return { id: entryId, ownerMobile: villa.ownerMobile };
   });
   const entry = await loadEntry(ctx.db, id);
@@ -225,10 +228,76 @@ export async function listInside(ctx: ServerContext, staff: StaffPrincipal): Pro
   };
 }
 
+const BOARD_LIMIT = 200;
+
+/**
+ * The gate board: approved visits still to come (residents' requests and approved passes) and the visits
+ * that ended today. Visitors are only moved inside by scanning their QR at the gate.
+ */
+export async function getGateBoard(ctx: ServerContext, staff: StaffPrincipal): Promise<GateBoardDTO> {
+  requireGateStaff(staff);
+  const settings = await getSettings(ctx);
+  const now = ctx.clock.now();
+  const startOfToday = zonedDateTimeToUtc(zonedDateString(now, settings.timezone), '00:00', settings.timezone);
+  const fromEntry = (e: QuickEntryDTO & { expectedAt?: string | null }, at: string | null): GateBoardItemDTO => ({
+    kind: 'entry',
+    id: e.id,
+    fullName: e.fullName,
+    villaNumber: e.villaNumber,
+    at,
+    enteredAt: e.enteredAt,
+    hasImage: e.hasImage,
+  });
+  const [expected, exited, approved, completed] = await Promise.all([
+    entryQuery(ctx.db).where(eq(quickEntries.status, 'expected')).orderBy(asc(quickEntries.expectedAt)).limit(BOARD_LIMIT),
+    entryQuery(ctx.db)
+      .where(and(eq(quickEntries.status, 'exited'), gte(quickEntries.exitedAt, startOfToday)))
+      .orderBy(desc(quickEntries.exitedAt))
+      .limit(BOARD_LIMIT),
+    ctx.db
+      .select({ id: visits.id, fullName: visitors.fullName, villaNumber: villas.number, at: visits.requestedEntryAt })
+      .from(visits)
+      .innerJoin(visitors, eq(visitors.id, visits.visitorId))
+      .innerJoin(villas, eq(villas.id, visits.villaId))
+      .where(and(eq(visits.status, 'approved'), sql`${visits.entryWindowEnd} > ${now}`))
+      .orderBy(asc(visits.requestedEntryAt))
+      .limit(BOARD_LIMIT),
+    ctx.db
+      .select({ id: visits.id, fullName: visitors.fullName, villaNumber: villas.number, at: visits.checkedOutAt, enteredAt: visits.checkedInAt })
+      .from(visits)
+      .innerJoin(visitors, eq(visitors.id, visits.visitorId))
+      .innerJoin(villas, eq(villas.id, visits.villaId))
+      .where(and(eq(visits.status, 'completed'), gte(visits.checkedOutAt, startOfToday)))
+      .orderBy(desc(visits.checkedOutAt))
+      .limit(BOARD_LIMIT),
+  ]);
+  const byAt = (dir: 1 | -1) => (a: GateBoardItemDTO, b: GateBoardItemDTO) => ((a.at ?? '') < (b.at ?? '') ? -dir : dir);
+  return {
+    upcoming: [
+      ...expected.map((r) => {
+        const e = toDTO(r);
+        return fromEntry(e, e.expectedAt);
+      }),
+      ...approved.map((v): GateBoardItemDTO => ({ kind: 'visit', id: v.id, fullName: v.fullName, villaNumber: v.villaNumber, at: v.at.toISOString(), enteredAt: null, hasImage: false })),
+    ].sort(byAt(1)),
+    completedToday: [
+      ...exited.map((r) => {
+        const e = toDTO(r);
+        return fromEntry(e, e.exitedAt);
+      }),
+      ...completed.map((v): GateBoardItemDTO => ({ kind: 'visit', id: v.id, fullName: v.fullName, villaNumber: v.villaNumber, at: v.at?.toISOString() ?? null, enteredAt: v.enteredAt?.toISOString() ?? null, hasImage: false })),
+    ].sort(byAt(-1)),
+  };
+}
+
 /** History for administrators and the gate log. */
 export async function listQuickEntries(ctx: ServerContext, staff: StaffPrincipal, query: { page: number; pageSize: number; q?: string | undefined }) {
   requireGateStaff(staff);
-  const where = query.q ? sql`(${villas.number} ilike ${`%${query.q}%`} or ${quickEntries.fullName} ilike ${`%${query.q}%`} or ${quickEntries.documentNumber} ilike ${`%${query.q}%`})` : undefined;
+  // Only people who actually came through the gate (not invitations still expected or cancelled).
+  const entered = isNotNull(quickEntries.enteredAt);
+  const where = query.q
+    ? and(entered, sql`(${villas.number} ilike ${`%${query.q}%`} or ${quickEntries.fullName} ilike ${`%${query.q}%`} or ${quickEntries.documentNumber} ilike ${`%${query.q}%`})`)
+    : entered;
   const rows = await entryQuery(ctx.db)
     .where(where)
     .orderBy(desc(quickEntries.enteredAt))
@@ -290,13 +359,19 @@ export async function respondAsOwner(ctx: ServerContext, token: string, response
 
 // ───────────────────────────── Housekeeping ─────────────────────────────
 
-/** Deletes ID photos once the retention period after exit has passed. */
+/** Deletes ID photos once the retention period has passed after the exit, or after a request that was never used. */
 export async function sweepQuickEntryImages(scope: TxScope): Promise<number> {
   const before = new Date(scope.now.getTime() - QUICK_ENTRY_IMAGE_RETENTION_DAYS * 86_400_000);
   const removed = await scope.tx
     .update(quickEntries)
     .set({ idImage: null, idImageType: null, idImageRemovedAt: scope.now })
-    .where(and(isNotNull(quickEntries.idImage), isNull(quickEntries.idImageRemovedAt), isNotNull(quickEntries.exitedAt), lt(quickEntries.exitedAt, before)))
+    .where(
+      and(
+        isNotNull(quickEntries.idImage),
+        isNull(quickEntries.idImageRemovedAt),
+        or(lt(quickEntries.exitedAt, before), and(inArray(quickEntries.status, ['expected', 'cancelled']), lt(quickEntries.createdAt, before))),
+      ),
+    )
     .returning({ id: quickEntries.id });
   return removed.length;
 }

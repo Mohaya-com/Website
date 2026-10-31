@@ -197,7 +197,16 @@ describe('reading ID photo text', () => {
     expect(result.expiry).toEqual({ calendar: 'hijri', date: '1452-03-10' });
   });
 
-  it('takes a name only next to a label, never from stray words read off a real card', () => {
+  it('reads the unlabeled name printed on a Saudi ID card, in English or Arabic', () => {
+    const number = withLuhnCheckDigit('104734313');
+    expect(parseIdText(`KINGDOM OF SAUDI ARABIA\nMINISTRY OF INTERIOR\nNATIONAL IDENTITY CARD\nعبدالله محمد سالم القحطاني\nABDULLAH MOHAMMED AL QAHTANI\n${number}`, today)).toMatchObject({
+      documentNumber: number,
+      fullName: 'Abdullah Mohammed Al Qahtani',
+    });
+    expect(parseIdText(`المملكة العربية السعودية\nوزارة الداخلية\nعبدالله محمد سالم القحطاني\n${number}`, today).fullName).toBe('عبدالله محمد سالم القحطاني');
+  });
+
+  it('never takes a name from stray words read off a real card', () => {
     expect(parseIdText('PS ERI IE\nAL MA LS\n12 3', today).fullName).toBeUndefined();
     expect(parseIdText('الاسم: أحمد جمال سالم', today).fullName).toBe('أحمد جمال سالم');
     expect(parseIdText('Name: SAMPLE TEST PERSON', today).fullName).toBe('Sample Test Person');
