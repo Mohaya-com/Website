@@ -1,4 +1,4 @@
-import type { OtpChallenge, User, Visitor } from '@vms/db';
+import type { OtpChallenge, Resident, User, Visitor } from '@vms/db';
 import { ApiError, hasPermission, type Locale, type Permission, type PrincipalRole, type StaffRole } from '@vms/shared';
 
 export interface StaffPrincipal {
@@ -31,7 +31,20 @@ export interface RegistrantPrincipal {
   expiresAt: Date;
 }
 
-export type Principal = StaffPrincipal | VisitorPrincipal | RegistrantPrincipal;
+/** A villa resident (one account per villa; the username is the villa number). */
+export interface ResidentPrincipal {
+  kind: 'resident';
+  role: 'resident';
+  sessionId: string;
+  residentId: string;
+  resident: Resident;
+  villaId: string;
+  villaNumber: string;
+  locale: Locale;
+  expiresAt: Date;
+}
+
+export type Principal = StaffPrincipal | VisitorPrincipal | RegistrantPrincipal | ResidentPrincipal;
 
 export function roleOf(p: Principal | null): PrincipalRole | null {
   return p?.role ?? null;
@@ -58,6 +71,12 @@ export function requireVisitor(p: Principal | null): VisitorPrincipal {
   const principal = requireAuthenticated(p);
   if (principal.kind === 'registrant') throw new ApiError(403, 'registration_required');
   if (principal.kind !== 'visitor') throw new ApiError(403, 'forbidden');
+  return principal;
+}
+
+export function requireResident(p: Principal | null): ResidentPrincipal {
+  const principal = requireAuthenticated(p);
+  if (principal.kind !== 'resident') throw new ApiError(403, 'forbidden');
   return principal;
 }
 

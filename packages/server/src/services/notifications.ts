@@ -130,7 +130,7 @@ export async function markRead(db: DbExecutor, principal: Principal, now: Date, 
 }
 
 export async function registerPushToken(db: DbExecutor, principal: Principal, token: string, platform: string, now: Date): Promise<void> {
-  if (principal.kind === 'registrant') return;
+  if (principal.kind === 'registrant' || principal.kind === 'resident') return;
   const owner = principal.kind === 'staff' ? { userId: principal.userId, visitorId: null } : { userId: null, visitorId: principal.visitorId };
   await db
     .insert(pushTokens)

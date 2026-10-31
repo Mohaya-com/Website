@@ -1,13 +1,15 @@
 'use client';
 
-import { Eye, EyeOff, LogIn, ShieldCheck } from 'lucide-react';
+import { Eye, EyeOff, Home, LogIn, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AuthResultDTO } from '@vms/shared';
 import { PublicShell } from '@/components/shell/public-shell';
 import { Banner } from '@/components/ui/feedback';
-import { Field, Input } from '@/components/ui/form';
+import { Field, Input, Segmented } from '@/components/ui/form';
+import { normalizeDigits } from '@vms/shared';
 import { Button, Card } from '@/components/ui/primitives';
 import { api, isApiError } from '@/lib/api';
 import { useI18n } from '@/lib/i18n';
@@ -17,6 +19,7 @@ function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
   const qc = useQueryClient();
+  const [mode, setMode] = useState<'staff' | 'resident'>(search.get('as') === 'resident' ? 'resident' : 'staff');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -34,6 +37,12 @@ function LoginForm() {
     }
     setBusy(true);
     try {
+      if (mode === 'resident') {
+        const res = await api<AuthResultDTO>('/auth/resident/login', { body: { username: normalizeDigits(username.trim()).toUpperCase(), password, client: 'web' } });
+        qc.setQueryData(['session'], res.session);
+        router.replace('/resident');
+        return;
+      }
       const res = await api<AuthResultDTO>('/auth/staff/login', { body: { username: username.trim(), password, client: 'web' } });
       qc.setQueryData(['session'], res.session);
       const next = search.get('next');
@@ -49,13 +58,29 @@ function LoginForm() {
 
   return (
     <Card className="p-6 sm:p-8 animate-slide-up">
+      <div className="mb-5">
+        <Segmented
+          label={t('common.signIn')}
+          size="lg"
+          value={mode}
+          onChange={(m) => {
+            setMode(m);
+            setError(null);
+            setFields({});
+          }}
+          options={[
+            { value: 'staff', label: t('resident.staffTab') },
+            { value: 'resident', label: t('resident.loginTab') },
+          ]}
+        />
+      </div>
       <div className="mb-6 flex items-center gap-3">
         <span className="grid size-12 place-items-center rounded-2xl bg-navy-900 text-white">
-          <ShieldCheck className="size-6" aria-hidden />
+          {mode === 'resident' ? <Home className="size-6" aria-hidden /> : <ShieldCheck className="size-6" aria-hidden />}
         </span>
         <div>
-          <h1 className="text-xl font-extrabold text-navy-900">{t('auth.staffLoginTitle')}</h1>
-          <p className="text-sm text-muted">{t('auth.staffLoginSubtitle')}</p>
+          <h1 className="text-xl font-extrabold text-navy-900">{mode === 'resident' ? t('resident.portalTitle') : t('auth.staffLoginTitle')}</h1>
+          {mode === 'staff' && <p className="text-sm text-muted">{t('auth.staffLoginSubtitle')}</p>}
         </div>
       </div>
       {search.get('expired') && (
@@ -69,7 +94,7 @@ function LoginForm() {
         </Banner>
       )}
       <form onSubmit={submit} noValidate className="space-y-4">
-        <Field label={t('fields.username')} required error={fields.username}>
+        <Field label={mode === 'resident' ? t('resident.usernameLabel') : t('fields.username')} required error={fields.username}>
           {(a) => <Input {...a} dir="ltr" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />}
         </Field>
         <Field label={t('fields.password')} required error={fields.password}>
@@ -86,6 +111,13 @@ function LoginForm() {
           {busy ? t('auth.signingIn') : t('common.signIn')}
         </Button>
       </form>
+      {mode === 'resident' && (
+        <p className="mt-5 text-center text-sm">
+          <Link href="/resident/signup" className="font-semibold text-teal-700 underline-offset-4 hover:underline">
+            {t('resident.signupLink')}
+          </Link>
+        </p>
+      )}
     </Card>
   );
 }

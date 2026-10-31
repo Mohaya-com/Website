@@ -67,7 +67,11 @@ export const notificationRoutes: RouteDef[] = [
 /** Whether a principal may receive a realtime event. Events carry identifiers only. */
 export function canReceive(principal: Principal, event: RealtimeEvent): boolean {
   if (event.t === 'config') return true;
-  if (event.t === 'arrival' || event.t === 'gate') return principal.kind === 'staff';
+  if (event.t === 'arrival' || event.t === 'residents') return principal.kind === 'staff';
+  if (event.t === 'gate' || event.t === 'maintenance') {
+    if (principal.kind === 'staff') return true;
+    return principal.kind === 'resident' && !!event.villaId && event.villaId === principal.villaId;
+  }
   if (principal.kind === 'staff') {
     if (event.t === 'visit') return true;
     return event.userId === principal.userId;

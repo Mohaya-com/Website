@@ -18,8 +18,10 @@ import { getSettings } from '../../services/settings';
 import { setVisitorLocale } from '../../services/visitors';
 import { clearSessionCookie, json, sessionCookie, type RouteContext, type RouteDef } from '../core';
 import { requireStaff } from '../../auth/principal';
+import { eq } from 'drizzle-orm';
+import { residents } from '@vms/db';
 
-async function authResponse(rc: RouteContext, token: string, principal: Principal, client: ClientKind): Promise<Response> {
+export async function authResponse(rc: RouteContext, token: string, principal: Principal, client: ClientKind): Promise<Response> {
   const settings = await getSettings(rc.ctx);
   const session = toSessionInfo(principal, rc.ctx.clock.now(), settings.timezone);
   if (client === 'mobile') {
@@ -111,6 +113,7 @@ export const authRoutes: RouteDef[] = [
       const p = rc.principal!;
       if (p.kind === 'staff') await setUserLocale(rc.ctx.db, p.userId, locale);
       if (p.kind === 'visitor') await setVisitorLocale(rc.ctx.db, p.visitorId, locale);
+      if (p.kind === 'resident') await rc.ctx.db.update(residents).set({ locale }).where(eq(residents.id, p.residentId));
       return { ok: true };
     },
   },

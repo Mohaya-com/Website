@@ -15,7 +15,9 @@ export type RealtimeEvent =
   | { t: 'notification'; userId?: string; visitorId?: string }
   | { t: 'config' }
   | { t: 'arrival' }
-  | { t: 'gate' };
+  | { t: 'gate'; villaId?: string }
+  | { t: 'residents' }
+  | { t: 'maintenance'; villaId?: string };
 
 /** Queues a notification inside the current transaction. PostgreSQL delivers it only if the transaction commits. */
 export async function publish(tx: DbExecutor, event: RealtimeEvent): Promise<void> {

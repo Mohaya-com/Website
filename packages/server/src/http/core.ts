@@ -7,7 +7,7 @@ import type { ServerContext } from '../context';
 import { hmacHex } from '../crypto';
 import { describeError, logger } from '../logger';
 
-export type AuthMode = 'public' | 'any' | 'staff' | 'visitor' | 'registrant' | 'member';
+export type AuthMode = 'public' | 'any' | 'staff' | 'visitor' | 'registrant' | 'member' | 'resident';
 
 export interface RouteContext {
   ctx: ServerContext;
@@ -211,6 +211,11 @@ export function createRouter(ctx: ServerContext, routes: RouteDef[]): Router {
         case 'member':
           if (!principal) throw new ApiError(401, 'unauthenticated');
           if (principal.kind === 'registrant') throw new ApiError(403, 'registration_required');
+          if (principal.kind === 'resident') throw new ApiError(403, 'forbidden');
+          break;
+        case 'resident':
+          if (!principal) throw new ApiError(401, 'unauthenticated');
+          if (principal.kind !== 'resident') throw new ApiError(403, 'forbidden');
           break;
         default:
           break;

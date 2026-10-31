@@ -16,6 +16,12 @@ export async function requireStaffSession(): Promise<SessionInfoDTO> {
   return session;
 }
 
+export async function requireResidentSession(): Promise<SessionInfoDTO> {
+  const session = await getServerSession();
+  if (!session || session.kind !== 'resident') redirect('/login?as=resident');
+  return session;
+}
+
 export async function requireVisitorSession(): Promise<SessionInfoDTO> {
   const session = await getServerSession();
   if (!session) redirect('/visitor');

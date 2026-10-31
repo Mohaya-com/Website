@@ -25,6 +25,8 @@ export interface ServerConfig {
     whatsapp: { accessToken: string; phoneNumberId: string; templateName: string; templateLanguage: string; apiVersion: string };
   };
   push: { provider: PushProviderName; expoAccessToken: string | null };
+  /** ID photo reader: free in-server OCR, or the Claude API (opt-in, sends the photo to Anthropic). */
+  idReader: { provider: 'tesseract' | 'claude'; model: string };
   sessions: { staffIdleHours: number; staffMaxDays: number; visitorMaxDays: number; registrantMinutes: number };
   maintenanceIntervalSeconds: number;
   cookieName: string;
@@ -139,6 +141,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const pushProvider = (env.PUSH_PROVIDER ?? 'none') as PushProviderName;
   if (!['none', 'expo'].includes(pushProvider)) problems.push(`Unknown PUSH_PROVIDER "${pushProvider}"`);
 
+  const idReaderProvider = (env.ID_READER?.trim() || 'tesseract') as 'tesseract' | 'claude';
+  if (!['tesseract', 'claude'].includes(idReaderProvider)) problems.push(`Unknown ID_READER "${idReaderProvider}"`);
+  if (idReaderProvider === 'claude' && !env.ANTHROPIC_API_KEY?.trim() && !env.ANTHROPIC_AUTH_TOKEN?.trim()) problems.push('ID_READER=claude requires ANTHROPIC_API_KEY');
+
   if (problems.length) throw new ConfigError(`Invalid server configuration:\n  - ${problems.join('\n  - ')}`);
 
   const secureCookies = appOrigin.startsWith('https://');
@@ -155,6 +161,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     setupToken,
     sms: { provider: smsProvider, twilio, whatsapp },
     push: { provider: pushProvider, expoAccessToken: env.EXPO_ACCESS_TOKEN?.trim() || null },
+    idReader: { provider: idReaderProvider, model: env.ID_READER_MODEL?.trim() || 'claude-opus-5-5' },
     sessions: {
       staffIdleHours: int(env.STAFF_SESSION_IDLE_HOURS, 12),
       staffMaxDays: int(env.STAFF_SESSION_MAX_DAYS, 7),
