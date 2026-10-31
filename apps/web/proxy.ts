@@ -15,6 +15,9 @@ export function proxy(request: NextRequest) {
     `media-src 'self' blob:`,
     `font-src 'self' data:`,
     `connect-src 'self'${isDev ? ' ws: wss:' : ''}`,
+    // The installed app's service worker (public/sw.js); 'strict-dynamic' would otherwise block it.
+    `worker-src 'self'`,
+    `manifest-src 'self'`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self'`,
@@ -33,7 +36,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico|icon.svg|\\.well-known).*)',
+      source: '/((?!api|_next/static|_next/image|favicon.ico|icon.svg|sw.js|\\.well-known).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },
