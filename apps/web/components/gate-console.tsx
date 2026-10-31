@@ -1,7 +1,7 @@
 'use client';
 
-import { Camera, CheckCircle2, ChevronDown, ClipboardCopy, Clock, DoorOpen, Loader2, LogIn, LogOut, MessageCircle, RotateCcw, Search, UserRound } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, CalendarClock, Camera, CheckCircle2, ChevronDown, ClipboardCopy, Clock, DoorOpen, Loader2, LogIn, LogOut, MessageCircle, Phone, RotateCcw, Search, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fieldErrorsFromIssues,
@@ -12,8 +12,13 @@ import {
   type InsideNowDTO,
   type QuickEntryCreatedDTO,
   type QuickEntryDTO,
+  type GateQrResultDTO,
+  type GateVillaDTO,
+  normalizeDigits,
 } from '@vms/shared';
 import { VillaNumberInput } from '@/components/inputs';
+import { ScanConsole } from '@/components/scan-console';
+import { WebScanner } from '@/components/web-scanner';
 import { Dialog } from '@/components/ui/dialog';
 import { Banner, EmptyState, ErrorState, LoadingRows } from '@/components/ui/feedback';
 import { Field, Input, Segmented, Select } from '@/components/ui/form';
@@ -51,7 +56,7 @@ function useGateChoice(gates: GateDTO[] | undefined) {
 
 // ───────────────────────────── Entry ─────────────────────────────
 
-function EntryPanel({ gateId, onDone }: { gateId: string; onDone: () => void }) {
+function EntryPanel({ gateId, onDone, prefillNumber }: { gateId: string; onDone: () => void; prefillNumber?: string | null }) {
   const { t } = useI18n();
   const fmt = useFormat();
   const toast = useToast();
@@ -59,10 +64,10 @@ function EntryPanel({ gateId, onDone }: { gateId: string; onDone: () => void }) 
   const [image, setImage] = useState<PreparedImage | null>(null);
   const [reading, setReading] = useState(false);
   const [villaNumber, setVillaNumber] = useState('');
-  const [documentNumber, setDocumentNumber] = useState('');
+  const [documentNumber, setDocumentNumber] = useState(prefillNumber ?? '');
   const [documentKind, setDocumentKind] = useState<DocumentKind | null>(null);
   const [fullName, setFullName] = useState('');
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetails, setShowDetails] = useState(!!prefillNumber);
   const [fields, setFields] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<QuickEntryCreatedDTO | null>(null);
 
@@ -171,6 +176,7 @@ function EntryPanel({ gateId, onDone }: { gateId: string; onDone: () => void }) 
   return (
     <Card className="space-y-5 p-5">
       <input ref={camera} type="file" accept="image/*" capture="environment" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void onPhoto(e.target.files?.[0])} />
+      {prefillNumber && !image && <Banner tone="info">{t('gate.qrIdentity', { number: prefillNumber })}</Banner>}
       {image ? (
         <div className="relative overflow-hidden rounded-2xl border border-line bg-navy-50">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -211,6 +217,7 @@ function EntryPanel({ gateId, onDone }: { gateId: string; onDone: () => void }) 
       <div id="gate-villa-wrap">
         <VillaNumberInput value={villaNumber} onChange={setVillaNumber} error={fields.villaNumber} large />
       </div>
+      <VillaInfo number={villaNumber} gateId={gateId} onCheckedIn={onDone} />
 
       <div className="rounded-xl border border-line">
         <button type="button" aria-expanded={showDetails} onClick={() => setShowDetails((v) => !v)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start font-semibold text-navy-900">
@@ -237,6 +244,165 @@ function EntryPanel({ gateId, onDone }: { gateId: string; onDone: () => void }) 
       <Button size="lg" variant="accent" block loading={save.isPending} disabled={reading} icon={<LogIn className="size-5 rtl:-scale-x-100" aria-hidden />} onClick={submit}>
         {t('gate.recordEntry')}
       </Button>
+    </Card>
+  );
+}
+
+// ───────────────────────────── Villa lookup ─────────────────────────────
+
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(id);
+  }, [value, ms]);
+  return v;
+}
+
+/** Owner name and phone for the typed villa, and the visitors it is expecting (one tap to check in). */
+function VillaInfo({ number, gateId, onCheckedIn }: { number: string; gateId: string; onCheckedIn: () => void }) {
+  const { t } = useI18n();
+  const fmt = useFormat();
+  const toast = useToast();
+  const qc = useQueryClient();
+  const villa = useDebounced(normalizeDigits(number).trim().toUpperCase(), 350);
+  const q = useQuery({
+    queryKey: ['gate', 'villa', villa],
+    queryFn: () => api<GateVillaDTO>(`/gate/villa?number=${encodeURIComponent(villa)}`),
+    enabled: villa.length > 0 && /^[A-Z0-9؀-ۿ\-/ ]{1,20}$/.test(villa),
+    retry: false,
+  });
+  const checkIn = useMutation({
+    mutationFn: (id: string) => api<{ entry: QuickEntryDTO }>(`/gate/invites/${id}/check-in`, { body: { gateId: gateId || null } }),
+    onSuccess: (res) => {
+      toast(t('gate.checkedIn', { name: res.entry.fullName ?? t('gate.unnamed') }));
+      void qc.invalidateQueries({ queryKey: ['gate'] });
+      onCheckedIn();
+    },
+  });
+  if (!villa || !q.data) return null;
+  const v = q.data.villa;
+  return (
+    <div className="space-y-3 rounded-2xl border border-line bg-navy-50/60 p-4">
+      {!v ? (
+        <p className="text-sm text-muted">{t('gate.villaUnknown')}</p>
+      ) : (
+        <>
+          {!v.isActive && <Banner tone="warning">{t('gate.villaInactive')}</Banner>}
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-muted">{t('gate.villaOwner')}</p>
+              <p className="truncate text-lg font-bold text-navy-900">{v.ownerName ?? '—'}</p>
+            </div>
+            {v.ownerMobile && (
+              <a href={`tel:${v.ownerMobile}`} className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 font-semibold text-teal-700 shadow-sm" dir="ltr">
+                <Phone className="size-4" aria-hidden />
+                <span className="ltr-nums">{v.ownerMobile.startsWith('+966') ? `0${v.ownerMobile.slice(4)}` : v.ownerMobile}</span>
+              </a>
+            )}
+          </div>
+          {q.data.expected.length > 0 && (
+            <div className="space-y-2 border-t border-line pt-3">
+              <p className="text-sm font-bold text-navy-900">{t('gate.expectedTitle')}</p>
+              {q.data.expected.map((e) => (
+                <div key={e.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 shadow-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-navy-900">{e.fullName ?? t('gate.unnamed')}</p>
+                    {e.expectedAt && (
+                      <p className="flex items-center gap-1 text-xs text-muted">
+                        <CalendarClock className="size-3.5" aria-hidden />
+                        {fmt.dateTime(e.expectedAt)}
+                      </p>
+                    )}
+                  </div>
+                  <Button size="sm" variant="accent" loading={checkIn.isPending && checkIn.variables === e.id} onClick={() => checkIn.mutate(e.id)} icon={<LogIn className="size-4 rtl:-scale-x-100" aria-hidden />}>
+                    {t('gate.checkIn')}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────── QR ─────────────────────────────
+
+/** Scans invitations (checked in at once), visit passes (verified with the pass scanner) and ID codes. */
+function QrPanel({ gateId, onIdentity, onDone }: { gateId: string; onIdentity: (documentNumber: string) => void; onDone: () => void }) {
+  const { t } = useI18n();
+  const [manual, setManual] = useState('');
+  const [result, setResult] = useState<GateQrResultDTO | null>(null);
+  const [passQr, setPassQr] = useState<string | null>(null);
+  const check = useMutation({
+    mutationFn: (qr: string) => api<GateQrResultDTO>('/gate/qr', { body: { qr, gateId: gateId || null } }),
+    onSuccess: (res, qr) => {
+      if (res.kind === 'pass') return setPassQr(qr);
+      if (res.kind === 'identity') return onIdentity(res.documentNumber);
+      setResult(res);
+      if (res.kind === 'invite') onDone();
+    },
+  });
+  const onDetect = useCallback((value: string) => {
+    if (!check.isPending) check.mutate(value);
+  }, [check]);
+
+  if (passQr) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" icon={<ArrowRight className="size-4 ltr:rotate-180" aria-hidden />} onClick={() => setPassQr(null)}>
+          {t('gate.back')}
+        </Button>
+        <ScanConsole initialAction="entry" initialQr={passQr} />
+      </div>
+    );
+  }
+  const reset = () => {
+    setResult(null);
+    check.reset();
+    setManual('');
+  };
+  if (result || check.isError) {
+    const name = result?.kind === 'invite' ? (result.entry.fullName ?? t('gate.unnamed')) : '';
+    return (
+      <Card className="space-y-4 p-6 text-center">
+        {result?.kind === 'invite' ? (
+          <>
+            <span className="mx-auto grid size-16 place-items-center rounded-full bg-emerald-50 text-emerald-700">
+              <CheckCircle2 className="size-9" aria-hidden />
+            </span>
+            <p className="text-xl font-extrabold text-navy-900">{result.alreadyInside ? t('gate.alreadyInside', { name }) : t('gate.checkedIn', { name })}</p>
+            <p className="text-muted">{t('gate.villaShort', { villa: result.entry.villaNumber })}</p>
+          </>
+        ) : (
+          <Banner tone="danger">{check.isError ? (isApiError(check.error) ? t.dynamic(check.error.messageKey) : t('errors.internal_error')) : t('gate.qrUnknown')}</Banner>
+        )}
+        <Button size="lg" variant="accent" block icon={<RotateCcw className="size-5" aria-hidden />} onClick={reset}>
+          {t('gate.scanAgain')}
+        </Button>
+      </Card>
+    );
+  }
+  return (
+    <Card className="space-y-4 p-5">
+      <p className="text-sm text-muted">{t('gate.qrHint')}</p>
+      <div className="overflow-hidden rounded-2xl">
+        <WebScanner onDetect={onDetect} paused={check.isPending} />
+      </div>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (manual.trim()) check.mutate(manual.trim());
+        }}
+      >
+        <Input aria-label={t('gate.qrManual')} placeholder={t('gate.qrManual')} dir="ltr" value={manual} onChange={(e) => setManual(e.target.value)} />
+        <Button type="submit" variant="secondary" loading={check.isPending}>
+          {t('gate.qrCheck')}
+        </Button>
+      </form>
     </Card>
   );
 }
@@ -372,7 +538,8 @@ function ExitPanel({ inside, gateId }: { inside: InsideNowDTO | undefined; gateI
 /** The gate screen for security: photograph the ID and type the villa to enter; tap a name to exit. */
 export function GateConsole() {
   const { t, locale } = useI18n();
-  const [tab, setTab] = useState<'entry' | 'exit'>('entry');
+  const [tab, setTab] = useState<'entry' | 'qr' | 'exit'>('entry');
+  const [prefill, setPrefill] = useState<{ number: string; key: number } | null>(null);
   const gates = useQuery({ queryKey: ['gates', 'active'], queryFn: () => api<{ items: GateDTO[] }>('/gates') });
   const activeGates = gates.data?.items.filter((g) => g.isActive);
   const [gateId, setGateId] = useGateChoice(activeGates);
@@ -401,12 +568,24 @@ export function GateConsole() {
           onChange={setTab}
           options={[
             { value: 'entry', label: t('gate.entryTab') },
+            { value: 'qr', label: t('gate.qrTab') },
             { value: 'exit', label: `${t('gate.exitTab')}${count ? ` (${count})` : ''}` },
           ]}
         />
       </div>
       {inside.isError && <ErrorState error={inside.error} onRetry={() => void inside.refetch()} />}
-      {tab === 'entry' ? <EntryPanel gateId={gateId} onDone={() => void inside.refetch()} /> : <ExitPanel inside={inside.data} gateId={gateId} />}
+      {tab === 'entry' && <EntryPanel key={prefill?.key ?? 0} gateId={gateId} prefillNumber={prefill?.number} onDone={() => void inside.refetch()} />}
+      {tab === 'qr' && (
+        <QrPanel
+          gateId={gateId}
+          onDone={() => void inside.refetch()}
+          onIdentity={(number) => {
+            setPrefill({ number, key: Date.now() });
+            setTab('entry');
+          }}
+        />
+      )}
+      {tab === 'exit' && <ExitPanel inside={inside.data} gateId={gateId} />}
     </div>
   );
 }

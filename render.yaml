@@ -38,6 +38,12 @@ services:
         value: otp_code
       - key: WHATSAPP_TEMPLATE_LANGUAGE
         value: ar
+      # Optional: read Arabic names and Arabic-Indic digits on ID photos with the Claude API
+      # (paid; photos are sent to Anthropic). Leave empty to use the free built-in reader.
+      - key: ID_READER
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: PUSH_PROVIDER
         value: none
       - key: DATABASE_POOL_MAX

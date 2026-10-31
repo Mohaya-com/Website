@@ -5,7 +5,6 @@ import {
   ApiError,
   hasPermission,
   maskDocumentNumber,
-  parseIdText,
   zonedDateString,
   type ArrivalScanResultDTO,
   type DocumentKind,
@@ -19,7 +18,7 @@ import type { StaffPrincipal } from '../auth/principal';
 import type { RequestMeta } from '../auth/staff';
 import { inTransaction, type ServerContext, type TxScope } from '../context';
 import { hmacBase64Url, sha256Hex } from '../crypto';
-import { recognizeText } from '../providers/ocr';
+import { readIdImage } from '../providers/id-reader';
 import { enforceRateLimit } from '../rate-limit';
 import { publish } from '../realtime';
 import { audit } from './audit';
@@ -107,12 +106,11 @@ export async function loadEntry(db: DbExecutor, id: string): Promise<VisitorReco
 }
 
 /** Reads the photo for the guard to check (nothing is stored by this call). */
-export async function scanForGate(ctx: ServerContext, staff: StaffPrincipal, image: { bytes: Buffer }): Promise<ArrivalScanResultDTO> {
+export async function scanForGate(ctx: ServerContext, staff: StaffPrincipal, image: { type: string; bytes: Buffer }): Promise<ArrivalScanResultDTO> {
   requireGateStaff(staff);
-  const text = await recognizeText(image.bytes);
-  if (!text?.trim()) return { recognized: false, fields: {} };
   const settings = await getSettings(ctx);
-  return { recognized: true, fields: parseIdText(text, zonedDateString(ctx.clock.now(), settings.timezone)) };
+  const fields = await readIdImage(ctx.config, image, zonedDateString(ctx.clock.now(), settings.timezone));
+  return fields ? { recognized: true, fields } : { recognized: false, fields: {} };
 }
 
 /** Finds the villa by its number, adding new numbers to the list (administrators can disable wrong ones). */

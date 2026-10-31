@@ -20,6 +20,7 @@ import {
   UserPlus,
   UserRoundSearch,
   Users,
+  Wrench,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,9 +50,6 @@ const OPERATIONS: NavItem[] = [
   { href: '/staff/gate/history', label: 'nav.gateHistory', icon: ListChecks, permission: 'gate.quick_entry' },
   { href: '/staff/arrivals', label: 'nav.arrivals', icon: IdCard, permission: 'arrivals.review', badge: 'arrivals' },
   { href: '/staff/requests', label: 'nav.requests', icon: ClipboardCheck, permission: 'visits.approve', badge: 'pending' },
-  { href: '/staff/scan', label: 'nav.scan', icon: ScanLine, permission: 'scan.verify' },
-  { href: '/staff/inside', label: 'nav.inside', icon: DoorOpen, permission: 'occupancy.read', badge: 'inside' },
-  { href: '/staff/register', label: 'nav.register', icon: UserPlus, permission: 'visits.create_on_behalf' },
   { href: '/staff/visits', label: 'nav.visits', icon: History, permission: 'visits.read_history' },
   { href: '/staff/visitors', label: 'nav.visitors', icon: UserRoundSearch, permission: 'visitors.search' },
   { href: '/staff/log', label: 'nav.log', icon: ScrollText, permission: 'gate_log.read' },
@@ -59,6 +57,8 @@ const OPERATIONS: NavItem[] = [
 
 const MANAGEMENT: NavItem[] = [
   { href: '/staff/gates', label: 'nav.gates', icon: ShieldCheck, permission: 'gates.manage' },
+  { href: '/staff/residents', label: 'nav.residents', icon: Home, permission: 'residents.manage' },
+  { href: '/staff/maintenance', label: 'nav.maintenance', icon: Wrench, permission: 'maintenance.manage' },
   { href: '/staff/villas', label: 'nav.villas', icon: Building2, permission: 'villas.manage' },
   { href: '/staff/users', label: 'nav.users', icon: Users, permission: 'users.manage' },
   { href: '/staff/settings', label: 'nav.settings', icon: Settings, permission: 'settings.manage' },

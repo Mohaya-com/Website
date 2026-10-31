@@ -21,6 +21,8 @@ A complete visitor-management system for a residential compound: an **iOS/Androi
 9. [Roles and permissions](#roles-and-permissions)
 10. [Visit lifecycle and approval workflow](#visit-lifecycle-and-approval-workflow)
 11. [QR workflows](#qr-workflows)
+    - [Gate quick entry (security)](#gate-quick-entry-security)
+    - [Residents portal](#residents-portal)
 12. [Visitor verification (OTP) and SMS](#visitor-verification-otp-and-sms)
 13. [Notifications and push](#notifications-and-push)
 14. [Real-time updates and connectivity](#real-time-updates-and-connectivity)
@@ -266,26 +268,59 @@ Clear messages cover every outcome: pending, rejected, cancelled, expired, too e
 
 ## Gate quick entry (security)
 
-The main workflow at the gate. Security staff land on **Gate** (`/staff/gate`, permission `gate.quick_entry`):
+The main workflow at the gate. Security staff land on **Gate** (`/staff`, also `/staff/gate`, permission `gate.quick_entry`). One page with three tabs replaces the separate register-visitor and scan pages:
 
-- **Entry:** photograph the ID, Iqama or passport, type the villa number, and press *Record entry*. The date and time are recorded automatically.
+- **Entry:** photograph the ID, Iqama or passport, type the villa number, and press *Record entry*. The date and time are recorded automatically, the visitor goes straight to the inside list, and no approval is needed.
+  - As soon as the villa number is typed, the villa card shows the owner's name and phone (tap to call) and any visitors the resident is expecting, each with a *Check in* button.
   - Passports are read from the machine-readable zone (ICAO 9303 TD3). Check digits are verified, so a misread line is never accepted.
-  - Saudi ID and Iqama text is read with Tesseract (Arabic and English models). The number and name are optional fields.
+  - Saudi ID and Iqama cards are read with Tesseract (Arabic and English models). The number is accepted only with a valid check digit; the name only when it sits next to a printed label. Tesseract does not read Arabic-Indic digits reliably, so on Arabic-only cards the number may need typing. For those cards, set the optional Claude reader below.
   - The photo is always stored with the entry.
+- **QR:** scan with the camera or paste the text.
+  - A resident's invitation (`/i#token`) checks the visitor in at once.
+  - A visit pass opens the pass check.
+  - Any other code that contains a 10-digit number with a valid check digit (for example the text of a digital ID) fills the identity number on the entry tab.
+  - Signed Absher / Tawakkalna digital-ID codes cannot be verified without an official integration, so the guard is told to photograph the card instead.
 - **Owner confirmation (optional):**
-  - If the villa has an owner mobile (set on the Villas page), the guard gets a `wa.me` link with a ready message. It opens WhatsApp on the guard's phone, so no messaging provider is needed.
+  - If the villa has an owner mobile, the guard gets a `wa.me` link with a ready message. It opens WhatsApp on the guard's phone, so no messaging provider is needed.
   - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner confirms or declines.
+  - Residents with an account also confirm from their portal.
   - The answer appears live next to the visitor.
-- **Exit:** the *Exit* tab lists everyone inside, covering both quick entries and visits checked in with a pass. Tapping a name and confirming records the exit time.
+- **Inside:** lists everyone inside, covering quick entries, checked-in invitations and visits checked in with a pass. Tapping a name and confirming records the exit time.
 - **History:** *Gate log* (`/staff/gate/history`) shows entries and exits, who recorded them, and the owner's response.
-- **Privacy:** photos are served only to staff with `no-store` and deleted 30 days after exit. Every action is audited. Owner contact details are never included in the villa options visitors can read.
+- **Privacy:** photos are served only to staff with `no-store` and deleted 30 days after exit. Every action is audited. Owner contact details are shown only to gate staff and administrators, never in the villa options visitors can read.
 - Arabic guide: [deploy/GATE.ar.md](deploy/GATE.ar.md).
+
+### Optional: Claude ID reader
+
+Set `ID_READER=claude` and `ANTHROPIC_API_KEY` to read ID photos with the Claude API (model `ID_READER_MODEL`, default `claude-opus-5-5`). This reads Arabic names and Arabic-Indic digits.
+
+- Every value is still checked on the server (check digit, passport format, country code, date) and stays editable.
+- On any error or refusal the free Tesseract reader is used instead.
+- It is paid per photo, and the photos are sent to Anthropic, so mention this in your privacy notice before you enable it.
+
+## Residents portal
+
+Villa residents have their own interface at `/resident`. They sign in from the *Resident* tab on `/login`.
+
+- **Sign-up:** at `/resident/signup` with the villa number, a password, and optionally a name and phone.
+  - The villa number is the username, and each villa can have only one account. A second sign-up for the same villa is refused (`villa_registered`) until an administrator removes or changes the existing account.
+  - An administrator approves the first sign-in under **Residents** (`/staff/residents`, `residents.manage`). Approval copies the name and phone to the villa.
+  - Administrators can also reject, disable (which ends the resident's sessions), reset the password, or remove an account.
+  - Sign-in failures lock the account temporarily, like staff accounts.
+- **Pages:**
+  - *Visitors*: upcoming, inside now, and past.
+  - *Invite*: the resident enters the visitor's name, optional mobile and expected time, and gets a QR pass link (`/i#token`) to share by WhatsApp. The guard scans it to check the visitor in.
+  - *Confirmations*: confirm or decline visitors the gate recorded for the villa.
+  - *Maintenance*: plumbing, electrical, AC, carpentry, cleaning or other requests. Administrators handle them under **Maintenance** (`maintenance.manage`).
+  - *Villa*: edit the owner name and phone only.
+- **Isolation:** resident sessions can only reach `/resident/*` endpoints, scoped to their own villa. Staff, visitor and other villas' data return 403 or 404.
+- Arabic guide: [deploy/RESIDENTS.ar.md](deploy/RESIDENTS.ar.md). The mobile app has not been updated for residents; the web portal works on phones.
 
 ## Arrival registration (no verification code)
 
 When no SMS/WhatsApp provider is used, visitors register themselves at arrival at `/arrive` (linked from the visitor entry page and from gate QR landings):
 
-- **ID photo reading:** an optional photo of the ID/Iqama is downscaled in the browser and read on the server with Tesseract (`tesseract.js` with the bundled English model; no third-party service). The identity number (accepted only with a valid check digit), English name, nationality and expiry date (Gregorian or Hijri) pre-fill the form. Every field stays editable, and manual entry works without a photo.
+- **ID photo reading:** an optional photo of the ID/Iqama is downscaled in the browser and read on the server with Tesseract (`tesseract.js` with the bundled Arabic and English models; no third-party service unless the optional Claude reader is enabled). The identity number (accepted only with a valid check digit), English name, nationality and expiry date (Gregorian or Hijri) pre-fill the form. Every field stays editable, and manual entry works without a photo.
 - **Administrator verification:** requests appear under **Arrivals** (`arrivals.review`, administrators). The ID photo is shown beside the editable entries, alongside any existing profile with the same number. Approval creates the profile, or updates it with a versioned and audited change, then creates and approves the visit and issues the pass. Rejection records a reason that the visitor sees.
 - **Privacy:**
   - The submitter only follows their own request through a random status token, stored hashed and kept in the URL fragment or local storage. A request for someone else's identity number never reveals that profile.

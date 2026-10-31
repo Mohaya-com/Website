@@ -5,7 +5,6 @@ import {
   hasPermission,
   maskDocumentNumber,
   maskPhone,
-  parseIdText,
   validateRequestTiming,
   zonedDateString,
   type ArrivalDetailDTO,
@@ -24,7 +23,7 @@ import type { StaffPrincipal } from '../auth/principal';
 import type { RequestMeta } from '../auth/staff';
 import { inTransaction, type ServerContext, type TxScope } from '../context';
 import { randomCode, randomToken, sha256Hex } from '../crypto';
-import { recognizeText } from '../providers/ocr';
+import { readIdImage } from '../providers/id-reader';
 import { enforceRateLimit } from '../rate-limit';
 import { publish } from '../realtime';
 import { findGateByCode } from './admin';
@@ -72,10 +71,9 @@ export function decodeIdImage(input: { type: string; data: string }, maxBytes: n
 /** Reads an ID photo and suggests field values. The photo is not stored. */
 export async function scanIdImage(ctx: ServerContext, image: { type: string; bytes: Buffer }, meta: RequestMeta): Promise<ArrivalScanResultDTO> {
   await enforceRateLimit(ctx, ARRIVAL_RATE_LIMITS.scanIp, meta.ip);
-  const text = await recognizeText(image.bytes);
-  if (!text?.trim()) return { recognized: false, fields: {} };
   const settings = await getSettings(ctx);
-  return { recognized: true, fields: parseIdText(text, zonedDateString(ctx.clock.now(), settings.timezone)) };
+  const fields = await readIdImage(ctx.config, image, zonedDateString(ctx.clock.now(), settings.timezone));
+  return fields ? { recognized: true, fields } : { recognized: false, fields: {} };
 }
 
 // ───────────────────────────── Submission and status ─────────────────────────────
