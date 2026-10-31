@@ -1,6 +1,7 @@
 'use client';
 
 import { ListChecks, Search, UserRound } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { QuickEntryDTO } from '@vms/shared';
@@ -17,6 +18,7 @@ const PAGE_SIZE = 25;
 /** Every entry recorded at the gate (new visitors and resident invitations), newest first. */
 export function GateEntriesTable() {
   const { t } = useI18n();
+  const router = useRouter();
   const fmt = useFormat();
   const [draft, setDraft] = useState('');
   const [q, setQ] = useState('');
@@ -51,6 +53,7 @@ export function GateEntriesTable() {
               caption={t('gate.entriesTab')}
               rows={list.data.items}
               rowKey={(e) => e.id}
+              onRowClick={(e) => router.push(`/staff/entries/${e.id}`)}
               columns={[
                 {
                   key: 'photo',

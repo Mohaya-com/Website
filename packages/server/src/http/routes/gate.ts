@@ -5,6 +5,7 @@ import { decodeIdImage } from '../../services/arrivals';
 import {
   createQuickEntry,
   exitQuickEntry,
+  getGateBoard,
   getOwnerConfirmation,
   getQuickEntry,
   getQuickEntryImage,
@@ -46,6 +47,12 @@ export const gateRoutes: RouteDef[] = [
       const { idImage, ...input } = await rc.body(quickEntrySchema);
       return createQuickEntry(rc.ctx, staff, { ...input, image: decodeIdImage(idImage, ID_IMAGE_MAX_BYTES) }, rc.meta);
     },
+  },
+  {
+    method: 'GET',
+    path: '/gate/board',
+    auth: 'staff',
+    handler: async (rc) => getGateBoard(rc.ctx, requirePermission(rc.principal, 'gate.quick_entry')),
   },
   {
     method: 'GET',

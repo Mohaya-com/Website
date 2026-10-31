@@ -6,10 +6,12 @@ import type { ServerContext, TxScope } from '../context';
 import { paginate, toNotificationDTO } from '../dto';
 import { publish } from '../realtime';
 
-/** Notification parameters are limited to non-identifying values (request reference, villa number). */
+/** Notification parameters are limited to non-identifying values (request reference, villa number, record id). */
 export interface NotificationParams {
-  reference: string;
+  reference?: string;
   villa?: string;
+  /** A gate entry / resident invitation the notification opens. */
+  entry?: string;
 }
 
 interface Recipient {
@@ -24,10 +26,14 @@ async function insertAndQueuePush(
   recipients: Recipient[],
   type: NotificationType,
   params: NotificationParams,
-  visitId: string,
+  visitId: string | null,
 ): Promise<void> {
   if (recipients.length === 0) return;
-  const cleanParams: Record<string, string> = { reference: params.reference, ...(params.villa ? { villa: params.villa } : {}) };
+  const cleanParams: Record<string, string> = {
+    ...(params.reference ? { reference: params.reference } : {}),
+    ...(params.villa ? { villa: params.villa } : {}),
+    ...(params.entry ? { entry: params.entry } : {}),
+  };
   await scope.tx.insert(notifications).values(
     recipients.map((r) => ({
       recipientUserId: r.userId ?? null,
@@ -60,7 +66,7 @@ async function insertAndQueuePush(
     const messages = tokens.map((t) => {
       const locale = localeByOwner.get(t.userId ?? t.visitorId!) ?? 'ar';
       const text = renderNotificationText(locale, type, cleanParams);
-      return { to: t.token, title: text.title, body: text.body, data: { type, visitId } };
+      return { to: t.token, title: text.title, body: text.body, data: { type, ...(visitId ? { visitId } : {}), ...(cleanParams.entry ? { entryId: cleanParams.entry } : {}) } };
     });
     const { invalidTokens } = await ctx.push.send(messages);
     if (invalidTokens.length) await ctx.db.delete(pushTokens).where(inArray(pushTokens.token, invalidTokens));
@@ -73,7 +79,7 @@ export async function notifyStaff(
   roles: StaffRole[],
   type: NotificationType,
   params: NotificationParams,
-  visitId: string,
+  visitId: string | null,
 ): Promise<void> {
   const staff = await scope.tx
     .select({ id: users.id, locale: users.locale })

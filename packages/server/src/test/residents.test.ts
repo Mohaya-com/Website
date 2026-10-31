@@ -15,6 +15,7 @@ afterAll(() => env.close());
 
 const PNG = fs.readFileSync(path.join(import.meta.dirname, 'fixtures', 'sample-iqama.png'));
 const PASSWORD = 'Villa-pass-2026';
+const IMAGE = { type: 'image/png', data: PNG.toString('base64') };
 
 function villaNumber() {
   return `R-${Math.floor(Math.random() * 1e6)}`;
@@ -96,8 +97,24 @@ describe('resident invitations and the gate', () => {
   it('invites a visitor, who is checked in by scanning the QR, then appears inside and exits with one tap', async () => {
     const r = await approvedResident();
     const expectedAt = new Date(env.clock.now().getTime() + 3_600_000).toISOString();
-    const inv = await call(env, 'POST', '/resident/invites', { token: r.token, body: { fullName: 'خالد الزائر', mobile: '0501231234', expectedAt } });
+    // The visitor's ID photo is required; the resident can have it read first.
+    expect((await call(env, 'POST', '/resident/invites', { token: r.token, body: { fullName: 'خالد الزائر', expectedAt } })).body.error.fields.idImage).toBeDefined();
+    const read = await call(env, 'POST', '/resident/scan', { token: r.token, body: { idImage: IMAGE } });
+    expect(read.body).toMatchObject({ recognized: true, fields: { documentNumber: '2345678904' } });
+    const inv = await call(env, 'POST', '/resident/invites', {
+      token: r.token,
+      body: { fullName: 'خالد الزائر', mobile: '0501231234', expectedAt, idImage: IMAGE, documentNumber: read.body.fields.documentNumber, documentKind: 'iqama' },
+    });
     expect(inv.status).toBe(200);
+    expect(inv.body.invite).toMatchObject({ hasImage: true, documentNumber: '2345678904' });
+
+    // The gate and the administrators are notified, and it is listed as an approved upcoming visit.
+    const alerts = await call(env, 'GET', '/notifications', { token: fx.guard.token });
+    expect(alerts.body.items.find((n: { params: { entry?: string } }) => n.params.entry === inv.body.invite.id)).toMatchObject({ type: 'invite_created', visitId: null });
+    const adminAlerts = await call(env, 'GET', '/notifications', { token: fx.admin.token });
+    expect(adminAlerts.body.items.some((n: { params: { entry?: string } }) => n.params.entry === inv.body.invite.id)).toBe(true);
+    const board = await call(env, 'GET', '/gate/board', { token: fx.guard.token });
+    expect(board.body.upcoming.find((i: { id: string }) => i.id === inv.body.invite.id)).toMatchObject({ kind: 'entry', villaNumber: r.number });
     expect(inv.body.invite).toMatchObject({ status: 'expected', fullName: 'خالد الزائر', invitedByResident: true, ownerResponse: 'confirmed', enteredAt: null });
     expect(inv.body.whatsappUrl).toMatch(/^https:\/\/wa\.me\/966501231234\?text=/);
 
@@ -124,6 +141,10 @@ describe('resident invitations and the gate', () => {
     expect(visitors.body.inside.map((e: { id: string }) => e.id)).toContain(inv.body.invite.id);
 
     await call(env, 'POST', `/gate/entries/${inv.body.invite.id}/exit`, { token: fx.guard.token });
+    // Exited today: listed under completed visits, and no longer upcoming.
+    const done = await call(env, 'GET', '/gate/board', { token: fx.guard.token });
+    expect(done.body.completedToday.map((i: { id: string }) => i.id)).toContain(inv.body.invite.id);
+    expect(done.body.upcoming.map((i: { id: string }) => i.id)).not.toContain(inv.body.invite.id);
     const after = await call(env, 'GET', '/resident/visitors', { token: r.token });
     expect(after.body.past.map((e: { id: string }) => e.id)).toContain(inv.body.invite.id);
     expect(after.body.upcoming).toHaveLength(0);
@@ -142,7 +163,7 @@ describe('resident invitations and the gate', () => {
     const other = await approvedResident();
     expect((await call(env, 'POST', `/resident/entries/${entry.body.entry.id}/respond`, { token: other.token, body: { response: 'declined' } })).status).toBe(404);
 
-    const inv = await call(env, 'POST', '/resident/invites', { token: r.token, body: { fullName: 'زائر ملغى', expectedAt: env.clock.now().toISOString() } });
+    const inv = await call(env, 'POST', '/resident/invites', { token: r.token, body: { fullName: 'زائر ملغى', expectedAt: env.clock.now().toISOString(), idImage: IMAGE } });
     expect((await call(env, 'POST', `/resident/invites/${inv.body.invite.id}/cancel`, { token: r.token })).body.status).toBe('cancelled');
     const token = inv.body.inviteLink.split('#')[1];
     const scan = await call(env, 'POST', '/gate/qr', { token: fx.guard.token, body: { qr: inv.body.inviteLink.replace(/#.*/, `#${token}`) } });

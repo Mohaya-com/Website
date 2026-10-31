@@ -287,6 +287,7 @@ The main workflow at the gate. The staff dashboard (`/staff`, permission `gate.q
   - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner confirms or declines.
   - Residents with an account also confirm from their portal.
   - The answer appears live next to the visitor.
+- **Approved upcoming / completed today:** below the inside list, the dashboard lists residents' visit requests and approved passes still to come, and the visits that ended today. Each opens a details page (`/staff/entries/:id`) with the ID photo, the visitor's details, the villa owner, and the entry and exit times and who recorded them. Visitors registered by a resident move inside only when their QR is scanned at the gate; there is no manual check-in button.
 - **Inside:** lists everyone inside, covering quick entries, checked-in invitations and visits checked in with a pass. The icon beside each name records the exit: tap it, then *Confirm exit*.
 - **Visit log:** *Visit log* (`/staff/visits`) shows every gate entry and exit, who recorded it, and the owner's response. The former *Gate log* page redirects here. Administrators also get a *Pass visits* tab.
 - **Privacy:** photos are served only to staff with `no-store` and deleted 30 days after exit. Every action is audited. Owner contact details are shown only to gate staff and administrators, never in the villa options visitors can read.
@@ -311,7 +312,7 @@ Villa residents have their own interface at `/resident`. They sign in from the *
   - Sign-in failures lock the account temporarily, like staff accounts.
 - **Pages:**
   - *Visitors*: upcoming, inside now, and past.
-  - *Invite*: the resident enters the visitor's name, optional mobile and expected time, and gets a QR pass link (`/i#token`) to share by WhatsApp. The guard scans it to check the visitor in.
+  - *Register visitor*: the resident attaches a photo of the visitor's ID, Iqama or passport (required). The name and number are read from it (`/resident/scan`) and can be edited or typed. The visit is approved at once, gate staff and administrators get an `invite_created` notification, and the resident gets a QR pass link (`/i#token`) to share by WhatsApp. The guard scans it to check the visitor in.
   - *Confirmations*: confirm or decline visitors the gate recorded for the villa.
   - *Maintenance*: plumbing, electrical, AC, carpentry, cleaning or other requests. Administrators handle them under **Maintenance** (`maintenance.manage`).
   - *Villa*: edit the owner name and phone only.

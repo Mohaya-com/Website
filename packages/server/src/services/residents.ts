@@ -8,7 +8,10 @@ import {
   luhnValid,
   maskPhone,
   normalizeDigits,
+  zonedDateString,
+  type ArrivalScanResultDTO,
   type ClientKind,
+  type DocumentKind,
   type GateQrResultDTO,
   type GateVillaDTO,
   type InviteCreatedDTO,
@@ -24,9 +27,11 @@ import { createSession, resolveSession } from '../auth/sessions';
 import type { RequestMeta } from '../auth/staff';
 import { inTransaction, type ServerContext, type TxScope } from '../context';
 import { burnPasswordCheck, hashPassword, hmacBase64Url, randomCode, sha256Hex, verifyPassword } from '../crypto';
+import { readIdImage } from '../providers/id-reader';
 import { enforceRateLimit } from '../rate-limit';
 import { publish } from '../realtime';
 import { audit } from './audit';
+import { notifyStaff } from './notifications';
 import { entryQuery, loadEntry, ownerTokenFor, toDTO, whatsappUrl } from './quick-entries';
 import { getSettings } from './settings';
 
@@ -42,6 +47,8 @@ const RATE = {
   loginIp: { name: 'resident:login:ip', limit: 30, windowSeconds: 15 * 60 },
   loginVilla: { name: 'resident:login:villa', limit: 10, windowSeconds: 15 * 60 },
   invitePassIp: { name: 'invite:pass:ip', limit: 300, windowSeconds: 60 * 60 },
+  // Reading a photo costs CPU (or a paid API call): a few dozen an hour per villa is plenty.
+  scanVilla: { name: 'resident:scan:villa', limit: 40, windowSeconds: 60 * 60 },
 };
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
@@ -229,14 +236,30 @@ export function inviteLink(ctx: ServerContext, entryId: string): string {
   return `${ctx.config.appOrigin}/i#${inviteToken(ctx, entryId)}`;
 }
 
-export async function createInvite(ctx: ServerContext, resident: ResidentPrincipal, input: { fullName: string; mobile?: string | null | undefined; expectedAt: string }): Promise<InviteCreatedDTO> {
-  const id = await inTransaction(ctx, async ({ tx, now }) => {
+export async function createInvite(
+  ctx: ServerContext,
+  resident: ResidentPrincipal,
+  input: {
+    fullName: string;
+    mobile?: string | null | undefined;
+    expectedAt: string;
+    documentKind?: DocumentKind | null | undefined;
+    documentNumber?: string | undefined;
+    image: { type: string; bytes: Buffer };
+  },
+): Promise<InviteCreatedDTO> {
+  const id = await inTransaction(ctx, async (scope) => {
+    const { tx, now } = scope;
     const entryId = crypto.randomUUID();
     await tx.insert(quickEntries).values({
       id: entryId,
       status: 'expected',
       villaId: resident.villaId,
       fullName: input.fullName,
+      documentKind: input.documentKind ?? null,
+      documentNumber: input.documentNumber ?? null,
+      idImage: input.image.bytes,
+      idImageType: input.image.type,
       visitorMobile: input.mobile ?? null,
       expectedAt: new Date(input.expectedAt),
       invitedByResidentId: resident.residentId,
@@ -249,6 +272,8 @@ export async function createInvite(ctx: ServerContext, resident: ResidentPrincip
     });
     await audit(tx, { actor: { type: 'system' }, action: 'resident.invite_created', entityType: 'quick_entry', entityId: entryId, metadata: { villa: resident.villaNumber }, at: now });
     await publish(tx, { t: 'gate', villaId: resident.villaId });
+    // The gate and the administrators are told an approved visitor is on the way.
+    await notifyStaff(ctx, scope, ['admin', 'security'], 'invite_created', { villa: resident.villaNumber, entry: entryId }, null);
     return entryId;
   });
   const invite = await loadEntry(ctx.db, id);
@@ -256,6 +281,14 @@ export async function createInvite(ctx: ServerContext, resident: ResidentPrincip
   const link = inviteLink(ctx, id);
   const text = `${settings.compoundNameAr}: دعوة لزيارة الفيلا ${resident.villaNumber}. اعرض رمز الدخول عند البوابة: ${link}`;
   return { invite, inviteLink: link, whatsappUrl: input.mobile ? whatsappUrl(input.mobile, text) : null };
+}
+
+/** Suggested visitor details from the ID photo a resident attaches to a visit request. */
+export async function scanForResident(ctx: ServerContext, resident: ResidentPrincipal, image: { type: string; bytes: Buffer }): Promise<ArrivalScanResultDTO> {
+  await enforceRateLimit(ctx, RATE.scanVilla, resident.villaId);
+  const settings = await getSettings(ctx);
+  const fields = await readIdImage(ctx.config, image, zonedDateString(ctx.clock.now(), settings.timezone));
+  return fields ? { recognized: true, fields } : { recognized: false, fields: {} };
 }
 
 export async function getInviteLink(ctx: ServerContext, resident: ResidentPrincipal, id: string): Promise<InviteCreatedDTO> {

@@ -238,11 +238,21 @@ export async function dashboardSummary(db: DbExecutor, now: Date, settings: Syst
     where status in ('pending', 'approved', 'checked_in') or (status = 'completed' and checked_out_at >= ${startOfToday})
   `);
   const r = result.rows[0];
+  // Residents' visit requests and gate entries count alongside visits made with a pass.
+  const gate = await db.execute<{ expected: number; inside: number; exited_today: number }>(sql`
+    select
+      count(*) filter (where status = 'expected')::int as expected,
+      count(*) filter (where status = 'inside')::int as inside,
+      count(*) filter (where status = 'exited' and exited_at >= ${startOfToday} and exited_at < ${endOfToday})::int as exited_today
+    from quick_entries
+    where status in ('expected', 'inside') or (status = 'exited' and exited_at >= ${startOfToday})
+  `);
+  const g = gate.rows[0];
   return {
     pending: Number(r?.pending ?? 0),
-    approvedUpcoming: Number(r?.approved_upcoming ?? 0),
-    inside: Number(r?.inside ?? 0),
-    completedToday: Number(r?.completed_today ?? 0),
+    approvedUpcoming: Number(r?.approved_upcoming ?? 0) + Number(g?.expected ?? 0),
+    inside: Number(r?.inside ?? 0) + Number(g?.inside ?? 0),
+    completedToday: Number(r?.completed_today ?? 0) + Number(g?.exited_today ?? 0),
     overdue: Number(r?.overdue ?? 0),
     expectedToday: Number(r?.expected_today ?? 0),
     generatedAt: now.toISOString(),

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import {
+  ID_IMAGE_MAX_BYTES,
+  idScanSchema,
   gateQrSchema,
   inviteSchema,
   maintenanceCreateSchema,
@@ -15,10 +17,10 @@ import {
 } from '@vms/shared';
 import { requirePermission, requireResident } from '../../auth/principal';
 import { inTransaction } from '../../context';
+import { decodeIdImage } from '../../services/arrivals';
 import {
   cancelInvite,
   cancelMyMaintenance,
-  checkInInvite,
   createInvite,
   createMaintenance,
   decideResident,
@@ -35,6 +37,7 @@ import {
   loginResident,
   resetResidentPassword,
   respondAsResident,
+  scanForResident,
   scanGateQr,
   signupResident,
   updateMaintenance,
@@ -42,6 +45,8 @@ import {
 } from '../../services/residents';
 import type { RouteDef } from '../core';
 import { authResponse } from './auth';
+
+const UPLOAD_BODY_BYTES = Math.ceil((ID_IMAGE_MAX_BYTES * 4) / 3) + 64 * 1024;
 
 const responseSchema = z.object({ response: z.enum(['confirmed', 'declined']) });
 
@@ -80,7 +85,22 @@ export const residentRoutes: RouteDef[] = [
     method: 'POST',
     path: '/resident/invites',
     auth: 'resident',
-    handler: async (rc) => createInvite(rc.ctx, requireResident(rc.principal), await rc.body(inviteSchema)),
+    maxBodyBytes: UPLOAD_BODY_BYTES,
+    handler: async (rc) => {
+      const { idImage, ...input } = await rc.body(inviteSchema);
+      return createInvite(rc.ctx, requireResident(rc.principal), { ...input, image: decodeIdImage(idImage, ID_IMAGE_MAX_BYTES) });
+    },
+  },
+  {
+    // Reads the visitor's ID photo so the resident does not have to type the details.
+    method: 'POST',
+    path: '/resident/scan',
+    auth: 'resident',
+    maxBodyBytes: UPLOAD_BODY_BYTES,
+    handler: async (rc) => {
+      const { idImage } = await rc.body(idScanSchema);
+      return scanForResident(rc.ctx, requireResident(rc.principal), decodeIdImage(idImage, ID_IMAGE_MAX_BYTES));
+    },
   },
   { method: 'GET', path: '/resident/invites/:id', auth: 'resident', handler: async (rc) => getInviteLink(rc.ctx, requireResident(rc.principal), rc.params.id!) },
   { method: 'POST', path: '/resident/invites/:id/cancel', auth: 'resident', handler: async (rc) => cancelInvite(rc.ctx, requireResident(rc.principal), rc.params.id!) },
@@ -114,16 +134,6 @@ export const residentRoutes: RouteDef[] = [
     path: '/gate/villa',
     auth: 'staff',
     handler: async (rc) => gateVillaInfo(rc.ctx, requirePermission(rc.principal, 'gate.quick_entry'), rc.query(z.object({ number: villaNumberSchema })).number),
-  },
-  {
-    method: 'POST',
-    path: '/gate/invites/:id/check-in',
-    auth: 'staff',
-    handler: async (rc) => {
-      const staff = requirePermission(rc.principal, 'gate.quick_entry');
-      const { gateId } = await rc.body(z.object({ gateId: z.string().uuid().optional().nullable() }));
-      return checkInInvite(rc.ctx, staff, rc.params.id!, gateId);
-    },
   },
   {
     method: 'POST',
