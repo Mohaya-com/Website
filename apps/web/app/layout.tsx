@@ -16,7 +16,9 @@ export const metadata: Metadata = {
   description: 'Visitor management for a residential compound — إدارة دخول وخروج الزوار',
   applicationName: 'نظام إدارة الزوار',
   robots: { index: false, follow: false },
-  icons: { icon: '/icon.svg' },
+  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
+  // Opened from the iPhone home screen: full screen with the app's own title.
+  appleWebApp: { capable: true, title: 'الزوار', statusBarStyle: 'default' },
 };
 
 export const viewport: Viewport = {

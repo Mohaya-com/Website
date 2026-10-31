@@ -3,6 +3,7 @@
 import { ArrowLeft, Home, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { InstallApp } from '@/components/install-app';
 import { PublicShell } from '@/components/shell/public-shell';
 import { useI18n } from '@/lib/i18n';
 
@@ -39,6 +40,7 @@ export function Landing() {
             {t('resident.signupLink')}
           </Link>
         </p>
+        <InstallApp />
       </div>
     </PublicShell>
   );

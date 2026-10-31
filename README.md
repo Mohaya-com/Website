@@ -382,6 +382,15 @@ Summary (details in [docs/PRIVACY-AND-SECURITY.md](docs/PRIVACY-AND-SECURITY.md)
 - **Append-only audit log** of sign-ins, lookups, profile changes (with masked values and reasons), submissions, decisions, scans, management changes and settings. Visible to administrators only.
 - **Secrets** come from environment variables. Production refuses insecure configuration: missing or short secrets, the dev SMS provider, or a non-HTTPS origin.
 
+## Installing as an app (PWA)
+
+The web app can be installed on phones without an app store:
+
+- `app/manifest.ts` provides the name, icons (192, 512, maskable 512) and full-screen display, plus shortcuts to the resident and staff sign-in. iPhones use `apple-touch-icon.png` and the `appleWebApp` metadata.
+- `public/sw.js` is a small service worker. It only shows `offline.html` when a page cannot load, and caches nothing else, so visitor data always comes from the server. The CSP allows it with `worker-src 'self'`.
+- The home page offers an *Install app* button where the browser supports it (Android Chrome, Edge), and the Share → *Add to Home Screen* steps on iPhone Safari. Dismissing it is remembered on that device.
+- Arabic guide: [deploy/INSTALL-APP.ar.md](deploy/INSTALL-APP.ar.md). Installing requires HTTPS with a valid certificate; Render provides one. Moving to a new domain means installing again from it.
+
 ## Building for Android and iOS
 
 The app is configured for [EAS Build](https://docs.expo.dev/build/introduction/) (`apps/mobile/eas.json`):

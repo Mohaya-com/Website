@@ -932,6 +932,14 @@ export const en: Messages = {
       cancelled: 'Cancelled',
     },
   },
+  install: {
+    title: 'Install the app on your phone',
+    body: 'Open it from your home screen like any app, full screen without the browser bar.',
+    button: 'Install app',
+    iosStep1: 'Tap the Share button at the bottom of Safari',
+    iosStep2: 'Choose "Add to Home Screen"',
+    dismiss: 'Hide',
+  },
   owner: {
     title: 'Confirm a visitor',
     body: 'A visitor for villa {villa} was checked in at {time}.',

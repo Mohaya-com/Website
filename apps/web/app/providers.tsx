@@ -6,10 +6,12 @@ import type { Locale } from '@vms/shared';
 import { isApiError } from '@/lib/api';
 import { I18nProvider } from '@/lib/i18n';
 import { RealtimeProvider } from '@/lib/realtime';
+import { useServiceWorker } from '@/components/install-app';
 import { ToastProvider } from '@/components/ui/toast';
 
 function SessionWatcher() {
   const qc = useQueryClient();
+  useServiceWorker();
   useEffect(() => {
     const onUnauthenticated = () => void qc.invalidateQueries({ queryKey: ['session'] });
     window.addEventListener('vms:unauthenticated', onUnauthenticated);
