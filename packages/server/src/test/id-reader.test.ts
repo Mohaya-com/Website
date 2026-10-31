@@ -16,7 +16,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 });
 
 const { readIdImage } = await import('../providers/id-reader');
-const config = { idReader: { provider: 'claude', model: 'claude-opus-5-5' } } as Parameters<typeof readIdImage>[0];
+const config = { idReader: { provider: 'claude', model: 'claude-haiku-5-5' } } as Parameters<typeof readIdImage>[0];
 const PNG = fs.readFileSync(path.join(import.meta.dirname, 'fixtures', 'sample-iqama.png'));
 const image = { type: 'image/png', bytes: PNG };
 
@@ -39,7 +39,7 @@ describe('ID reader with the Claude API (opt-in)', () => {
       expiry: { calendar: 'hijri', date: '1452-03-10' },
     });
     const request = parse.mock.calls[0]![0];
-    expect(request.model).toBe('claude-opus-5-5');
+    expect(request.model).toBe('claude-haiku-5-5');
     expect(request.messages[0].content[0]).toMatchObject({ type: 'image', source: { type: 'base64', media_type: 'image/png' } });
   });
 

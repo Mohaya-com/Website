@@ -161,7 +161,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     setupToken,
     sms: { provider: smsProvider, twilio, whatsapp },
     push: { provider: pushProvider, expoAccessToken: env.EXPO_ACCESS_TOKEN?.trim() || null },
-    idReader: { provider: idReaderProvider, model: env.ID_READER_MODEL?.trim() || 'claude-opus-5-5' },
+    // Haiku: the fastest current model, plenty for reading a card; every value is still validated here.
+    idReader: { provider: idReaderProvider, model: env.ID_READER_MODEL?.trim() || 'claude-haiku-5-5' },
     sessions: {
       staffIdleHours: int(env.STAFF_SESSION_IDLE_HOURS, 12),
       staffMaxDays: int(env.STAFF_SESSION_MAX_DAYS, 7),

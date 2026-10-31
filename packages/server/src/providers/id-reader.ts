@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { COUNTRY_CODES, inferDocumentType, luhnValid, normalizeDigits, parseIdText, type IdScanFields } from '@vms/shared';
 import type { ServerConfig } from '../config';
 import { describeError, logger } from '../logger';
-import { recognizeText } from './ocr';
+import { recognizeText, warmUpOcr } from './ocr';
 
 /**
  * Reads an ID / Iqama / passport photo. Two readers:
@@ -77,6 +77,11 @@ async function readWithClaude(config: ServerConfig['idReader'], image: { type: s
   });
   if (response.stop_reason === 'refusal' || !response.parsed_output) return null;
   return clean(response.parsed_output);
+}
+
+/** Starts the free reader at boot (it is also the fallback when the Claude reader is configured). */
+export function warmUpIdReader(): void {
+  warmUpOcr();
 }
 
 /** Suggested fields from an ID photo, or null when nothing could be read. */

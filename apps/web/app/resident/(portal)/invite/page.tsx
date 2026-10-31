@@ -11,7 +11,7 @@ import { Button, Card, PageHeader, cn } from '@/components/ui/primitives';
 import { useToast } from '@/components/ui/toast';
 import { api, isApiError } from '@/lib/api';
 import { useFormat } from '@/lib/hooks';
-import { prepareImage, type PreparedImage } from '@/lib/image';
+import { prepareIdPhoto, type PreparedImage } from '@/lib/image';
 import { useI18n } from '@/lib/i18n';
 
 /**
@@ -43,9 +43,9 @@ export default function InvitePage() {
     setReadNote(null);
     setFields((f) => ({ ...f, idImage: '' }));
     try {
-      const prepared = await prepareImage(file);
+      const prepared = await prepareIdPhoto(file);
       setImage(prepared);
-      const res = await api<ArrivalScanResultDTO>('/resident/scan', { body: { idImage: { type: prepared.type, data: prepared.data } }, timeoutMs: 90_000 }).catch(() => null);
+      const res = await api<ArrivalScanResultDTO>('/resident/scan', { body: { idImage: prepared.reading }, timeoutMs: 90_000 }).catch(() => null);
       const f = res?.fields;
       if (f?.fullName) setFullName(f.fullName);
       if (f?.documentNumber) setDocumentNumber(f.documentNumber);

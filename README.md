@@ -284,7 +284,7 @@ The main workflow at the gate. The staff dashboard (`/staff`, permission `gate.q
   - Signed Absher / Tawakkalna digital-ID codes cannot be verified without an official integration, so the guard is told to photograph the card instead.
 - **Owner confirmation (optional):**
   - If the villa has an owner mobile, the guard gets a `wa.me` link with a ready message. It opens WhatsApp on the guard's phone, so no messaging provider is needed.
-  - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner confirms or declines.
+  - The message carries a private link (`/v#token`, an HMAC-derived token stored hashed) where the owner answers *Received* or *Not received*.
   - Residents with an account also confirm from their portal.
   - The answer appears live next to the visitor.
 - **Approved upcoming / completed today:** below the inside list, the dashboard lists residents' visit requests and approved passes still to come, and the visits that ended today. Each opens a details page (`/staff/entries/:id`) with the ID photo, the visitor's details, the villa owner, and the entry and exit times and who recorded them. Visitors registered by a resident move inside only when their QR is scanned at the gate; there is no manual check-in button.
@@ -295,7 +295,9 @@ The main workflow at the gate. The staff dashboard (`/staff`, permission `gate.q
 
 ### Optional: Claude ID reader
 
-Set `ID_READER=claude` and `ANTHROPIC_API_KEY` to read ID photos with the Claude API (model `ID_READER_MODEL`, default `claude-opus-5-5`). This reads Arabic names and Arabic-Indic digits.
+Set `ID_READER=claude` and `ANTHROPIC_API_KEY` to read ID photos with the Claude API (model `ID_READER_MODEL`, default `claude-haiku-5-5`, chosen for speed; set `claude-sonnet-5-5` or `claude-opus-5-5` for harder photos). This reads Arabic names and Arabic-Indic digits in a few seconds, independent of the server's CPU.
+
+Without it, the free Tesseract reader is loaded when the server starts, so the first read does not wait for it. The phone sends a greyscale, contrast-stretched copy (1400 px) for reading, and keeps the colour photo for the record. On Render's free plan (a fraction of a CPU, and the service sleeps when idle) a read still takes several seconds; a paid instance or the Claude reader is much faster.
 
 - Every value is still checked on the server (check digit, passport format, country code, date) and stays editable.
 - On any error or refusal the free Tesseract reader is used instead.

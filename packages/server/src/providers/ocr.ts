@@ -53,6 +53,11 @@ async function getWorker(): Promise<Worker> {
   return worker;
 }
 
+/** Loads the models in the background so the first photo read after a restart does not wait for them. */
+export function warmUpOcr(): void {
+  getWorker().catch((err) => logger.warn('ocr.warmup_failed', describeError(err)));
+}
+
 /** Returns the text found in the image, or null when recognition is unavailable. */
 export async function recognizeText(image: Buffer): Promise<string | null> {
   const run = queue.then(async () => {
