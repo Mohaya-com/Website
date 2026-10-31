@@ -106,6 +106,10 @@ describe('resident invitations and the gate', () => {
     const pass = await call(env, 'POST', '/public/invites/view', { ip: freshIp(), body: { token } });
     expect(pass.body).toMatchObject({ villaNumber: r.number, fullName: 'خالد الزائر', status: 'expected' });
 
+    // Not in the gate log until the visitor actually comes through.
+    const log = await call(env, 'GET', `/gate/entries?q=${encodeURIComponent(r.number)}`, { token: fx.guard.token });
+    expect(log.body.items).toHaveLength(0);
+
     // The gate sees it under the villa, then scans it.
     const villa = await call(env, 'GET', `/gate/villa?number=${encodeURIComponent(r.number)}`, { token: fx.guard.token });
     expect(villa.body.expected.map((e: { id: string }) => e.id)).toContain(inv.body.invite.id);
@@ -113,6 +117,7 @@ describe('resident invitations and the gate', () => {
     expect(scan.body).toMatchObject({ kind: 'invite', alreadyInside: false, entry: { status: 'inside', enteredBy: expect.any(String) } });
     expect((await call(env, 'POST', '/gate/qr', { token: fx.guard.token, body: { qr: pass.body.qrValue } })).body.alreadyInside).toBe(true);
 
+    expect((await call(env, 'GET', `/gate/entries?q=${encodeURIComponent(r.number)}`, { token: fx.guard.token })).body.items.map((e: { id: string }) => e.id)).toEqual([inv.body.invite.id]);
     const inside = await call(env, 'GET', '/gate/inside', { token: fx.guard.token });
     expect(inside.body.entries.map((e: { id: string }) => e.id)).toContain(inv.body.invite.id);
     const visitors = await call(env, 'GET', '/resident/visitors', { token: r.token });

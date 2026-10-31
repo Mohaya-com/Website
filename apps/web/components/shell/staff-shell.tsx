@@ -3,9 +3,6 @@
 import {
   Building2,
   ClipboardCheck,
-  DoorClosed,
-  DoorOpen,
-  ListChecks,
   History,
   Home,
   IdCard,
@@ -13,11 +10,9 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  ScanLine,
   ScrollText,
   Settings,
   ShieldCheck,
-  UserPlus,
   UserRoundSearch,
   Users,
   Wrench,
@@ -46,11 +41,9 @@ interface NavItem {
 
 const OPERATIONS: NavItem[] = [
   { href: '/staff', label: 'nav.dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/staff/gate', label: 'nav.gate', icon: DoorClosed, permission: 'gate.quick_entry' },
-  { href: '/staff/gate/history', label: 'nav.gateHistory', icon: ListChecks, permission: 'gate.quick_entry' },
   { href: '/staff/arrivals', label: 'nav.arrivals', icon: IdCard, permission: 'arrivals.review', badge: 'arrivals' },
   { href: '/staff/requests', label: 'nav.requests', icon: ClipboardCheck, permission: 'visits.approve', badge: 'pending' },
-  { href: '/staff/visits', label: 'nav.visits', icon: History, permission: 'visits.read_history' },
+  { href: '/staff/visits', label: 'nav.visits', icon: History, permission: 'gate.quick_entry' },
   { href: '/staff/visitors', label: 'nav.visitors', icon: UserRoundSearch, permission: 'visitors.search' },
   { href: '/staff/log', label: 'nav.log', icon: ScrollText, permission: 'gate_log.read' },
 ];

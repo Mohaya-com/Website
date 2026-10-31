@@ -1,7 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { GateConsole } from '@/components/gate-console';
-
+// The gate screen is the staff dashboard.
 export default function GatePage() {
-  return <GateConsole />;
+  redirect('/staff');
 }

@@ -70,11 +70,51 @@ function findExpiry(text: string, today: string): IdScanFields['expiry'] {
   return best ? { calendar: best.calendar, date: best.date } : undefined;
 }
 
+const ARABIC_STOPWORDS = ['المملكة', 'العربية', 'السعودية', 'وزارة', 'الداخلية', 'هوية', 'الهوية', 'وطنية', 'الوطنية', 'إقامة', 'اقامة', 'الإقامة', 'تاريخ', 'الانتهاء', 'الميلاد', 'الجنسية', 'المهنة', 'الديانة', 'صاحب', 'العمل', 'رقم', 'مقيم', 'الجوازات', 'الأحوال', 'المدنية', 'مكان', 'الإصدار', 'النسخة'];
+const NAME_PARTICLES = new Set(['AL', 'EL', 'BIN', 'BINT', 'ABU', 'BEN', 'DE', 'VAN', 'ABD']);
+
+/** A line that looks like a printed Latin name: 2-6 words of letters with vowels, none of them card wording. */
+function latinNameLine(line: string): string | undefined {
+  if (!/^[A-Z][A-Z' -]{4,48}$/.test(line)) return undefined;
+  const words = line.split(/[\s-]+/).filter(Boolean);
+  if (words.length < 2 || words.length > 6 || words.some((w) => NAME_STOPWORDS.has(w))) return undefined;
+  const real = words.filter((w) => !NAME_PARTICLES.has(w));
+  if (real.length < 2 || !real.every((w) => w.length >= 3 && /[AEIOUY]/.test(w))) return undefined;
+  return titleCase(words.join(' '));
+}
+
+/** A line of 3-6 Arabic words (Saudi cards print the full name on one line without a label). */
+function arabicNameLine(line: string): string | undefined {
+  const cleaned = line
+    .replace(/[^\u0621-\u064A\s]/g, ' ')
+    .replace(/^\s*(?:ال)?[اإ]سم\s+/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (cleaned.length < 8 || cleaned.length > 60 || cleaned.length < line.replace(/\s/g, '').length * 0.8) return undefined;
+  const words = cleaned.split(' ');
+  if (words.length < 3 || words.length > 6 || words.some((w) => w.length < 2 || ARABIC_STOPWORDS.includes(w))) return undefined;
+  return cleaned;
+}
+
 /**
- * Only a name next to an explicit label is taken ("Name:" or "الاسم"): photos of real cards produce
- * plenty of short garbage words, and a wrong name is worse than an empty optional field.
+ * A name next to a label ("Name:" or "الاسم") is preferred. Otherwise a line shaped like a name is
+ * taken (Saudi ID cards print the name without a label). The field stays editable.
  */
 function findName(lines: string[]): string | undefined {
+  const labeled = findLabeledName(lines);
+  if (labeled) return labeled;
+  for (const line of lines) {
+    const latin = latinNameLine(line);
+    if (latin) return latin;
+  }
+  for (const line of lines) {
+    const arabic = arabicNameLine(line);
+    if (arabic) return arabic;
+  }
+  return undefined;
+}
+
+function findLabeledName(lines: string[]): string | undefined {
   for (const line of lines) {
     const latin = /\bNAME\s*[:.]?\s*([A-Z][A-Z' -]{3,})$/.exec(line);
     if (latin) {

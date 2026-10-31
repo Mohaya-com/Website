@@ -4,18 +4,21 @@ import { History } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import type { Paginated, VisitDTO } from '@vms/shared';
+import { hasPermission, type Paginated, type VisitDTO } from '@vms/shared';
+import { GateEntriesTable } from '@/components/gate-entries-table';
 import { StatusBadge } from '@/components/status';
 import { EmptyState, ErrorState, LoadingRows } from '@/components/ui/feedback';
+import { Segmented } from '@/components/ui/form';
 import { Card, PageHeader } from '@/components/ui/primitives';
 import { DataTable, Pagination } from '@/components/ui/table';
 import { EMPTY_FILTERS, VisitFilters, filtersToQuery, type VisitFilterState } from '@/components/visit-filters';
 import { useVisitLabels } from '@/components/visit-views';
 import { api } from '@/lib/api';
-import { useFormat } from '@/lib/hooks';
+import { useFormat, useSession } from '@/lib/hooks';
 import { useI18n } from '@/lib/i18n';
 
-function VisitHistory() {
+/** Visits made with a pass (requested, approved, then scanned at the gate). */
+function PassVisits() {
   const { t } = useI18n();
   const fmt = useFormat();
   const labels = useVisitLabels();
@@ -34,7 +37,7 @@ function VisitHistory() {
   };
   return (
     <div>
-      <PageHeader title={t('admin.visitHistoryTitle')} subtitle={q.data ? `${t('common.total')}: ${q.data.total}` : undefined} />
+      {q.data && <p className="mb-3 text-sm text-muted">{`${t('common.total')}: ${q.data.total}`}</p>}
       <Card>
         <VisitFilters value={filters} draft={draft} onDraft={setDraft} onApply={apply} />
         {q.isLoading ? (
@@ -87,10 +90,38 @@ function VisitHistory() {
   );
 }
 
+/** The visit log: every gate entry, and (for administrators) the visits made with a pass. */
+function VisitLog() {
+  const { t } = useI18n();
+  const { data: session } = useSession();
+  const search = useSearchParams();
+  const canSeePasses = !!session && hasPermission(session.role, 'visits.read_history');
+  const [tab, setTab] = useState<'entries' | 'passes'>(search.get('status') ? 'passes' : 'entries');
+  return (
+    <div>
+      <PageHeader title={t('admin.visitHistoryTitle')} />
+      {canSeePasses && (
+        <div className="mb-4 max-w-md">
+          <Segmented
+            label={t('admin.visitHistoryTitle')}
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'entries', label: t('gate.entriesTab') },
+              { value: 'passes', label: t('gate.passVisitsTab') },
+            ]}
+          />
+        </div>
+      )}
+      {tab === 'passes' && canSeePasses ? <PassVisits /> : <GateEntriesTable />}
+    </div>
+  );
+}
+
 export default function VisitHistoryPage() {
   return (
     <Suspense fallback={<LoadingRows />}>
-      <VisitHistory />
+      <VisitLog />
     </Suspense>
   );
 }

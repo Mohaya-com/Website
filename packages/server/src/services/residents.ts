@@ -368,7 +368,7 @@ export async function checkInInvite(ctx: ServerContext, staff: StaffPrincipal, i
     if (row.status !== 'expected') throw new ApiError(409, 'invite_not_valid', undefined, { status: row.status });
     await tx.update(quickEntries).set({ status: 'inside', enteredAt: now, enteredByUserId: staff.userId, gateId: gateId ?? null }).where(eq(quickEntries.id, id));
     await audit(tx, { actor: { type: 'user', userId: staff.userId }, action: 'gate.invite_checked_in', entityType: 'quick_entry', entityId: id, at: now });
-    await publish(tx, { t: 'gate', villaId: row.villaId });
+    await publish(tx, { t: 'gate', villaId: row.villaId, entered: row.fullName ?? '' });
   });
   return { entry: await loadEntry(ctx.db, id), alreadyInside };
 }

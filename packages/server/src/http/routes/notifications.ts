@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { pageQuerySchema, pushTokenSchema } from '@vms/shared';
+import { ApiError, pageQuerySchema, pushTokenSchema } from '@vms/shared';
 import { resolveSession } from '../../auth/sessions';
 import type { Principal } from '../../auth/principal';
 import { listNotifications, markRead, registerPushToken, unreadCount, unregisterPushToken } from '../../services/notifications';
@@ -64,7 +64,10 @@ export const notificationRoutes: RouteDef[] = [
   },
 ];
 
-/** Whether a principal may receive a realtime event. Events carry identifiers only. */
+/**
+ * Whether a principal may receive a realtime event. Events carry identifiers only, except the name of a
+ * visitor who has just entered, which goes to staff and to that villa's resident.
+ */
 export function canReceive(principal: Principal, event: RealtimeEvent): boolean {
   if (event.t === 'config') return true;
   if (event.t === 'arrival' || event.t === 'residents') return principal.kind === 'staff';
@@ -89,10 +92,12 @@ export const eventRoutes: RouteDef[] = [
   {
     method: 'GET',
     path: '/events',
-    auth: 'member',
+    // Staff, visitors and residents (who receive only their own villa's gate and maintenance events).
+    auth: 'any',
     handler: async (rc) => {
       const ctx = rc.ctx;
       const principal = rc.principal!;
+      if (principal.kind === 'registrant') throw new ApiError(403, 'registration_required');
       const token = rc.token;
       let cleanup: () => void = () => undefined;
       const stream = new ReadableStream<Uint8Array>({

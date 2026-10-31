@@ -178,7 +178,7 @@ export async function createQuickEntry(ctx: ServerContext, staff: StaffPrincipal
       ipHash: meta.ipHash,
       at: scope.now,
     });
-    await publish(scope.tx, { t: 'gate', villaId: villa.id });
+    await publish(scope.tx, { t: 'gate', villaId: villa.id, entered: input.fullName ?? '' });
     return { id: entryId, ownerMobile: villa.ownerMobile };
   });
   const entry = await loadEntry(ctx.db, id);
@@ -228,7 +228,11 @@ export async function listInside(ctx: ServerContext, staff: StaffPrincipal): Pro
 /** History for administrators and the gate log. */
 export async function listQuickEntries(ctx: ServerContext, staff: StaffPrincipal, query: { page: number; pageSize: number; q?: string | undefined }) {
   requireGateStaff(staff);
-  const where = query.q ? sql`(${villas.number} ilike ${`%${query.q}%`} or ${quickEntries.fullName} ilike ${`%${query.q}%`} or ${quickEntries.documentNumber} ilike ${`%${query.q}%`})` : undefined;
+  // Only people who actually came through the gate (not invitations still expected or cancelled).
+  const entered = isNotNull(quickEntries.enteredAt);
+  const where = query.q
+    ? and(entered, sql`(${villas.number} ilike ${`%${query.q}%`} or ${quickEntries.fullName} ilike ${`%${query.q}%`} or ${quickEntries.documentNumber} ilike ${`%${query.q}%`})`)
+    : entered;
   const rows = await entryQuery(ctx.db)
     .where(where)
     .orderBy(desc(quickEntries.enteredAt))
