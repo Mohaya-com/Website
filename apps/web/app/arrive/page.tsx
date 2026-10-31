@@ -12,7 +12,7 @@ import { Checkbox, Field, Input, Textarea } from '@/components/ui/form';
 import { Button, Card } from '@/components/ui/primitives';
 import { api, isApiError } from '@/lib/api';
 import { usePublicConfig } from '@/lib/hooks';
-import { prepareImage, type PreparedImage } from '@/lib/image';
+import { prepareIdPhoto, type PreparedImage } from '@/lib/image';
 import { useI18n } from '@/lib/i18n';
 import { saveArrivalToken } from './storage';
 
@@ -58,10 +58,10 @@ function ArrivalForm() {
     setReading(true);
     setReadResult(null);
     try {
-      const prepared = await prepareImage(file);
+      const prepared = await prepareIdPhoto(file);
       setImage(prepared);
       try {
-        const res = await api<ArrivalScanResultDTO>('/public/arrivals/scan', { body: { idImage: { type: prepared.type, data: prepared.data } }, timeoutMs: 60_000 });
+        const res = await api<ArrivalScanResultDTO>('/public/arrivals/scan', { body: { idImage: prepared.reading }, timeoutMs: 60_000 });
         const f = res.fields;
         if (f.documentNumber) setDocumentNumber(f.documentNumber);
         if (f.fullName && !fullName) {

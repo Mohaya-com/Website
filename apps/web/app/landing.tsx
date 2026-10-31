@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ShieldCheck, UserRound } from 'lucide-react';
+import { ArrowLeft, Home, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { PublicShell } from '@/components/shell/public-shell';
@@ -31,9 +31,14 @@ export function Landing() {
         <p className="mt-2 text-base text-muted">{t('app.tagline')}</p>
         <p className="mt-6 text-sm font-semibold text-navy-800">{t('auth.welcomeSubtitle')}</p>
         <div className="mt-3 space-y-3">
-          <EntryCard href="/visitor" accent icon={<UserRound className="size-7" aria-hidden />} title={t('auth.visitorEntry')} hint={t('auth.visitorEntryHint')} />
+          <EntryCard href="/login?as=resident" accent icon={<Home className="size-7" aria-hidden />} title={t('auth.residentEntry')} hint={t('auth.residentEntryHint')} />
           <EntryCard href="/login" icon={<ShieldCheck className="size-7" aria-hidden />} title={t('auth.staffEntry')} hint={t('auth.staffEntryHint')} />
         </div>
+        <p className="mt-5 text-center text-sm">
+          <Link href="/resident/signup" className="font-semibold text-teal-700 underline-offset-4 hover:underline">
+            {t('resident.signupLink')}
+          </Link>
+        </p>
       </div>
     </PublicShell>
   );

@@ -187,7 +187,7 @@ export async function createQuickEntry(ctx: ServerContext, staff: StaffPrincipal
   const entry = await loadEntry(ctx.db, id);
   const link = ownerLink(ctx, id);
   const who = entry.fullName ?? (entry.documentNumber ? maskDocumentNumber(entry.documentNumber) : '');
-  const message = [`${settings.compoundNameAr}: زائر للفيلا ${entry.villaNumber}${who ? ` (${who})` : ''}.`, `للتأكيد أو الرفض: ${link}`].join('\n');
+  const message = [`${settings.compoundNameAr}: زائر للفيلا ${entry.villaNumber}${who ? ` (${who})` : ''}.`, `لتأكيد استلام الزائر: ${link}`].join('\n');
   return { entry, ownerLink: link, ownerWhatsappUrl: ownerMobile ? whatsappUrl(ownerMobile, message) : null };
 }
 
@@ -197,7 +197,7 @@ export async function getQuickEntry(ctx: ServerContext, staff: StaffPrincipal, i
   const [villa] = await ctx.db.select({ ownerMobile: villas.ownerMobile }).from(quickEntries).innerJoin(villas, eq(villas.id, quickEntries.villaId)).where(eq(quickEntries.id, id));
   const settings = await getSettings(ctx);
   const link = ownerLink(ctx, id);
-  const message = [`${settings.compoundNameAr}: زائر للفيلا ${entry.villaNumber}${entry.fullName ? ` (${entry.fullName})` : ''}.`, `للتأكيد أو الرفض: ${link}`].join('\n');
+  const message = [`${settings.compoundNameAr}: زائر للفيلا ${entry.villaNumber}${entry.fullName ? ` (${entry.fullName})` : ''}.`, `لتأكيد استلام الزائر: ${link}`].join('\n');
   return { entry, ownerLink: link, ownerWhatsappUrl: villa?.ownerMobile ? whatsappUrl(villa.ownerMobile, message) : null };
 }
 
